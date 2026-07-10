@@ -1,11 +1,14 @@
 import os
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict
 from typing import Optional, List
 from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, DateTime, JSON, text
 from sqlalchemy.orm import declarative_base, sessionmaker
 from datetime import datetime
+from pathlib import Path
+from urllib.parse import quote
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
@@ -76,6 +79,11 @@ class Product(BaseModel):
 
 app = FastAPI(title="Maria's Clothing API", version="1.0.0")
 
+PRODUCT_IMAGES_DIR = Path(__file__).resolve().parent.parent / "ropa"
+
+if PRODUCT_IMAGES_DIR.exists():
+    app.mount("/product-images", StaticFiles(directory=PRODUCT_IMAGES_DIR), name="product-images")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -93,6 +101,157 @@ def get_db():
         db.close()
 
 
+def product_image(filename: str) -> str:
+    return f"/product-images/{quote(filename)}"
+
+
+CATALOG_PRODUCTS = [
+    {
+        "name": "Top strapless",
+        "slug": "top-strapless",
+        "description": "A bright yellow statement dress for sunny occasions.",
+        "price": 7000,
+        "category_id": 1,
+        "sizes": ["M"],
+        "colors": ["Yellow"],
+        "images": [product_image("amarilla.jpeg")],
+        "is_featured": True,
+    },
+    {
+        "name": "Top Fruncido",
+        "slug": "top-fruncido",
+        "description": "A second yellow dress option with a soft feminine finish.",
+        "price": 4000,
+        "category_id": 1,
+        "sizes": ["S"],
+        "colors": ["Yellow"],
+        "images": [product_image("amarilla2.jpeg")],
+        "is_featured": True,
+    },
+    {
+        "name": "Top Floral",
+        "slug": "top-floral",
+        "description": "A floral top with a fresh, romantic look.",
+        "price": 7000,
+        "category_id": 1,
+        "sizes": ["M"],
+        "colors": ["Floral"],
+        "images": [product_image("flores.jpeg")],
+        "is_featured": True,
+    },
+    {
+        "name": "Top Strapless blanco",
+        "slug": "top-strapless-blanco",
+        "description": "A clean white blouse for an effortless everyday outfit.",
+        "price": 7000,
+        "category_id": 4,
+        "sizes": ["S"],
+        "colors": ["White"],
+        "images": [product_image("blanca.jpeg")],
+        "is_featured": True,
+    },
+    {
+        "name": "Top romantico de tirantes",
+        "slug": "top-romantico-de-tirantes",
+        "description": "A delicate white lace blouse with refined texture.",
+        "price": 7000,
+        "category_id": 4,
+        "sizes": ["M"],
+        "colors": ["White"],
+        "images": [product_image("blancaencaje.jpeg")],
+        "is_featured": False,
+    },
+    {
+        "name": "Top polka dots",
+        "slug": "top-polka-dots",
+        "description": "A playful blouse with dotted detail.",
+        "price": 6500,
+        "category_id": 4,
+        "sizes": ["S"],
+        "colors": ["Pink"],
+        "images": [product_image("blusapuntos.jpeg")],
+        "is_featured": False,
+    },
+    {
+        "name": "Top picnic",
+        "slug": "top-picnic",
+        "description": "A checked outfit with a crisp boutique feel.",
+        "price": 7000,
+        "category_id": 2,
+        "sizes": ["S"],
+        "colors": ["Checkered"],
+        "images": [product_image("decuadros.jpeg")],
+        "is_featured": False,
+    },
+    {
+        "name": "Top capri azul",
+        "slug": "top-capri-azul",
+        "description": "A striped blue outfit with a relaxed shape.",
+        "price": 8000,
+        "category_id": 2,
+        "sizes": ["M"],
+        "colors": ["Blue"],
+        "images": [product_image("rayaszaul.jpeg")],
+        "is_featured": False,
+    },
+    {
+        "name": "top halter",
+        "slug": "set-blanco-y-negro",
+        "description": "A black and white outfit with classic contrast.",
+        "price": 7000,
+        "category_id": 2,
+        "sizes": ["S"],
+        "colors": ["Black", "White"],
+        "images": [product_image("blancoynegro.jpeg")],
+        "is_featured": False,
+    },
+    {
+        "name": "Top negro",
+        "slug": "top-negro",
+        "description": "A black top with timeless evening appeal.",
+        "price": 7000,
+        "category_id": 1,
+        "sizes": ["M"],
+        "colors": ["Black"],
+        "images": [product_image("negra.jpeg")],
+        "is_featured": False,
+    },
+    {
+        "name": "coquette lace tee",
+        "slug": "coquette-lace-tee",
+        "description": "A blouse with distinctive sleeve detail.",
+        "price": 7000,
+        "category_id": 4,
+        "sizes": [ "M"],
+        "colors": ["Neutral"],
+        "images": [product_image("mangas.jpeg")],
+        "is_featured": False,
+    },
+    {
+        "name": "Corset top",
+        "slug": "corset-top",
+        "description": "A structured corset piece for a polished silhouette.",
+        "price": 7500,
+        "category_id": 4,
+        "sizes": ["M"],
+        "colors": ["Neutral"],
+        "images": [product_image("corset.jpeg")],
+        "is_featured": False,
+    },
+    {
+        "name": "top strapless peplum",
+        "slug": "top-strapless-peplum",
+        "description": "A long white dress with a graceful silhouette.",
+        "price": 7000,
+        "category_id": 1,
+        "sizes": ["M"],
+        "colors": ["White"],
+        "images": [product_image("blancalarga.jpeg")],
+        "is_featured": False,
+    },
+]
+
+
 def seed_data():
     db = SessionLocal()
     if db.query(CategoryDB).count() == 0:
@@ -105,54 +264,24 @@ def seed_data():
         db.add_all(categories)
         db.commit()
 
-        products = [
-            ProductDB(
-                name="Seraphina Silk Dress",
-                slug="seraphina-silk-dress",
-                description="A flowing, ethereal soft pink silk maxi dress with a luxurious texture.",
-                price=385.00,
-                category_id=1,
-                sizes=["XS", "S", "M", "L"],
-                colors=["Pink", "Lilac"],
-                images=["https://lh3.googleusercontent.com/aida-public/AB6AXuAfU7Yn7Xwdf6TUarjwa9BJdgGqm7GwsrOmIXD4Q-caP0Voi13ul0rLPn4p-UxwggXlySCmN5e2JzLs1unJbgAshF5sqDkM5kXSkSbXvsjUOvZ0MG6F8k_jTOy3fIK1ZYx2ewYkHT05IMi3sEtPWZfZaX4gJ4PWe43D3TbSGhpDjmobKgjVmkUAsBVCWIIhbUY5Jm7Qrh1TKXJD9nEljRm4E8SAsMpXZWsP_J-ojy224gVB5xBl5-7HxVSCaN26Npaon8tuseyZhmSM"],
-                is_featured=True,
-            ),
-            ProductDB(
-                name="Aura Lace Blouse",
-                slug="aura-lace-blouse",
-                description="Close up of a luxury women's top in a delicate lilac lace material with crystal embellishments.",
-                price=210.00,
-                category_id=4,
-                sizes=["XS", "S", "M"],
-                colors=["Lilac", "White"],
-                images=["https://lh3.googleusercontent.com/aida-public/AB6AXuCsp-2D-RLX31LtATarLKUo10d34CQgX0gTmoB_vLO1Oau9ZcLJN1dVRCPdyYbpOrNhGGxNKu025DNp0O-3XcD-uEMVvSGiywNbIHI1mZgs9XhtdE14HmEWN76PwJrKHPAMzsSGAl-M2TnwCpaE3BL5p2frjaq9Bf-IYPpzLrXuti3eBnWqZqTWVPGKqymN9-uu0uF4HkTg_c_3n7PzA36JR6oA5VIp19HJaAJhFvY-bwE4mPNCG0ZYjuSBfuBr-41fQ7USiWCUXSKy"],
-                is_featured=True,
-            ),
-            ProductDB(
-                name="Pleated Lyric Skirt",
-                slug="pleated-lyric-skirt",
-                description="Asymmetric lavender pleated skirt with a modern, airy silhouette.",
-                price=175.00,
-                category_id=1,
-                sizes=["XS", "S", "M", "L"],
-                colors=["Lavender"],
-                images=["https://lh3.googleusercontent.com/aida-public/AB6AXuBC0KBFBBRtyO1QWlEl_Zq0ixQIVPX5kxw06Qd-sk8J-vW60rl7DCvqbo1OJEnKUkHXkIizwOVaY5kFYaWoyLYyy67r8FsHfMwr3eqXYaAbiRN6rn15rJpTnKHq20NKOPYbPCHZ4VaNq54iv3sIcoGk6pUflvVhxlgyDqYvbvWiR7aNo1L7qpz635VIvW5t3v32NGAGW_zzxcTqZ9nypTX-1FpKQfoS6MjtyvJXK0YiPSa4CjJ6g-uBtHB3IrxweSg1Bs99qxu_26qm"],
-                is_featured=True,
-            ),
-            ProductDB(
-                name="Lumina Lounge Set",
-                slug="lumina-lounge-set",
-                description="Two-piece linen set in a very pale rose color with minimalist jewelry highlights.",
-                price=290.00,
-                category_id=2,
-                sizes=["S", "M", "L"],
-                colors=["Rose", "White"],
-                images=["https://lh3.googleusercontent.com/aida-public/AB6AXuC8DoCFx2SDrZEu7daxAPuLkvL1iN_n8mLuSGAvbUT7vvz2CEXc52UTTPCQu-Uvcpsn1k3OrGGJj9i3kqs6R4MlF5pM87MJf0U07l4I8o9Inc39oUhZIknXvRnowtemmed5ppHTtRHcLpAOKXsWU55S7DIExtbE6SSzj6B4ONNwgC1MNU52EQLJv0K6IbYJ3RnDRDSi5joEl-PVjnJIQaBpPBr-nUYDpSs91nF1ymLUC4eeNW_h8uR5CGcR5peKzAYSeCpDcJ1R6wCd"],
-                is_featured=True,
-            ),
-        ]
-        db.add_all(products)
-        db.commit()
+    catalog_slugs = {product["slug"] for product in CATALOG_PRODUCTS}
+
+    for product_data in CATALOG_PRODUCTS:
+        product = db.query(ProductDB).filter(ProductDB.slug == product_data["slug"]).first()
+        if product is None:
+            db.add(ProductDB(**product_data))
+            continue
+
+        for field, value in product_data.items():
+            setattr(product, field, value)
+        product.is_active = True
+
+    db.query(ProductDB).filter(ProductDB.slug.notin_(catalog_slugs)).update(
+        {ProductDB.is_active: False},
+        synchronize_session=False,
+    )
+
+    db.commit()
     db.close()
 
 

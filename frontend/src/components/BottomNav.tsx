@@ -1,70 +1,98 @@
-"use client";
+'use client';
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const navItems = [
   {
     href: "/",
+    label: "Home",
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h3a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h3a1 1 0 001-1V10" />
+      </svg>
+    )
+  },
+  {
+    href: "/products",
     label: "Shop",
-    icon: "storefront",
-  },
-  {
-    href: "/catalogo",
-    label: "Catalog",
-    icon: "grid_view",
-  },
-  {
-    href: "/contacto",
-    label: "Contact",
-    icon: "mode_comment",
+    icon: (
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0" />
+      </svg>
+    )
   },
 ];
 
-export function BottomNav() {
+export default function BottomNav() {
   const pathname = usePathname();
+  const [isVisible, setIsVisible] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+
+      if (currentScrollY < 100) {
+        setIsVisible(true);
+      } else if (currentScrollY > lastScrollY + 10) {
+        setIsVisible(false);
+      } else if (currentScrollY < lastScrollY - 10) {
+        setIsVisible(true);
+      }
+
+      setLastScrollY(currentScrollY);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [lastScrollY]);
+
+  const isActive = (href: string) => {
+    if (href === "/") return pathname === "/";
+    return pathname.startsWith(href);
+  };
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 safe-area-inset-bottom">
-      <div className="mx-5 mb-2 rounded-2xl backdrop-blur-xl bg-surface-container-lowest/95 shadow-[0_-8px_30px_rgba(0,0,0,0.3)] border border-outline-variant/10">
-        <div className="flex items-center justify-around px-2 py-1.5">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`relative flex flex-col items-center justify-center gap-0.5 px-4 py-2 rounded-xl transition-all duration-300 ${
-                  isActive
-                    ? "text-primary"
-                    : "text-outline hover:text-on-surface-variant"
-                }`}
-              >
-                {isActive && (
-                  <div className="absolute inset-0 bg-primary/10 rounded-xl" />
-                )}
-                <span
-                  className="relative material-symbols-outlined text-[22px] transition-all duration-300"
-                  style={{
-                    fontVariationSettings: isActive ? "'FILL' 1, 'wght' 500" : "'FILL' 0, 'wght' 300",
-                  }}
-                >
-                  {item.icon}
-                </span>
-                <span
-                  className={`relative text-[9px] uppercase tracking-wider transition-all duration-300 ${
-                    isActive ? "font-semibold" : "font-medium"
-                  }`}
-                >
-                  {item.label}
-                </span>
-                {isActive && (
-                  <div className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-6 h-0.5 bg-primary rounded-full" />
-                )}
-              </Link>
-            );
-          })}
-        </div>
+    <nav
+      className={`
+        fixed bottom-0 left-0 right-0 z-50
+        md:hidden
+        glass border-t border-white/10
+        transition-transform duration-300 ease-out
+        ${isVisible ? "translate-y-0" : "translate-y-full"}
+      `}
+    >
+      <div className="flex items-center justify-around px-2 py-2 safe-area-bottom">
+        {navItems.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`
+              flex flex-col items-center justify-center
+              min-w-[64px] min-h-[56px]
+              px-3 py-2
+              rounded-xl
+              transition-all duration-200
+              active:scale-95
+              ${isActive(item.href)
+                ? "text-gold-accent bg-gold-accent/10"
+                : "text-iron-gray hover:text-bone-white"
+              }
+            `}
+          >
+            <div className="mb-1">
+              {item.icon}
+            </div>
+            <span
+              className="text-[10px] font-medium tracking-wide"
+              style={{ fontFamily: "var(--font-dm-sans)" }}
+            >
+              {item.label}
+            </span>
+          </Link>
+        ))}
       </div>
     </nav>
   );

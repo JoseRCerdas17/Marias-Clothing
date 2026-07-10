@@ -1,32 +1,25 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
-import { BottomNav } from "@/components/BottomNav";
+import { Cormorant_Garamond, DM_Sans } from "next/font/google";
 import "./globals.css";
+import GlobalCursor from "@/components/GlobalCursor";
 
-const plusJakarta = Plus_Jakarta_Sans({
+const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
-  variable: "--font-plus-jakarta",
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-cormorant",
+  display: "swap",
+});
+
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-dm-sans",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: {
-    default: "ELARA | Ethereal Fashion",
-    template: "%s | ELARA",
-  },
-  description: "Curated pieces that blend timeless luxury with a modern, airy feminine silhouette.",
-  openGraph: {
-    title: "ELARA | Ethereal Fashion",
-    description: "Curated pieces that blend timeless luxury with a modern, airy feminine silhouette.",
-    type: "website",
-  },
-  icons: {
-    icon: [
-      {
-        url: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>👗</text></svg>",
-        type: "image/svg+xml",
-      },
-    ],
-  },
+  title: "Maria's Clothing | Silk Dresses & Evening Wear",
+  description: "Luxurious silk dresses, evening sets, and accessories for the discerning woman.",
 };
 
 export default function RootLayout({
@@ -35,16 +28,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <head>
-        <link
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"
-          rel="stylesheet"
-        />
-      </head>
-      <body className={`${plusJakarta.variable} bg-background text-on-surface min-h-screen`}>
+    <html lang="en" className={`${cormorant.variable} ${dmSans.variable}`}>
+      <body className="antialiased">
+        <GlobalCursor />
         {children}
-        <BottomNav />
       </body>
     </html>
   );
