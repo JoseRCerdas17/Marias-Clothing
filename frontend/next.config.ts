@@ -31,14 +31,22 @@ const remotePatterns: NonNullable<NextConfig["images"]>["remotePatterns"] = [
 ];
 
 if (process.env.NEXT_PUBLIC_API_URL) {
-  const apiUrl = new URL(process.env.NEXT_PUBLIC_API_URL);
+  let apiUrl: URL | null = null;
 
-  remotePatterns.push({
-    protocol: apiUrl.protocol.replace(":", "") as "http" | "https",
-    hostname: apiUrl.hostname,
-    port: apiUrl.port,
-    pathname: "/product-images/**",
-  });
+  try {
+    apiUrl = new URL(process.env.NEXT_PUBLIC_API_URL);
+  } catch {
+    apiUrl = null;
+  }
+
+  if (apiUrl) {
+    remotePatterns.push({
+      protocol: apiUrl.protocol.replace(":", "") as "http" | "https",
+      hostname: apiUrl.hostname,
+      port: apiUrl.port,
+      pathname: "/product-images/**",
+    });
+  }
 }
 
 const nextConfig: NextConfig = {
