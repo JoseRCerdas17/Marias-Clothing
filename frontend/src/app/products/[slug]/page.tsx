@@ -19,6 +19,13 @@ function ActionPill({ children, href, className = "" }: { children: React.ReactN
   );
 }
 
+function getSiteUrl() {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.VERCEL_URL;
+
+  if (!siteUrl) return "";
+  return siteUrl.startsWith("http") ? siteUrl : `https://${siteUrl}`;
+}
+
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const product = await getProduct(slug);
@@ -30,7 +37,18 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const relatedProducts = await getProducts({ category: product.category_name?.toLowerCase().replace(" ", "-") });
   const filteredRelated = relatedProducts.filter((p) => p.slug !== slug).slice(0, 4);
 
-  const message = encodeURIComponent(`Hola, estoy interesado/a en ${product.name} (${formatPrice(product.price)}).`);
+  const siteUrl = getSiteUrl();
+  const productUrl = siteUrl ? `${siteUrl}/products/${product.slug}` : `/products/${product.slug}`;
+  const productImageUrl = product.images[0];
+  const message = encodeURIComponent(
+    [
+      `Hola, estoy interesado/a en ${product.name} (${formatPrice(product.price)}).`,
+      `Link del producto: ${productUrl}`,
+      productImageUrl ? `Imagen del producto: ${productImageUrl}` : null,
+    ]
+      .filter(Boolean)
+      .join("\n"),
+  );
   const whatsappUrl = `https://wa.me/50663385129?text=${message}`;
 
   return (
