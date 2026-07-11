@@ -62,6 +62,11 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                     sizes="(max-width: 768px) 100vw, 50vw"
                     priority={index === 0}
                   />
+                  {product.is_sold && index === 0 && (
+                    <span className="absolute top-4 left-4 rounded-full bg-black/80 px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.15em] text-white backdrop-blur-sm">
+                      Sold
+                    </span>
+                  )}
                 </div>
               ))}
             </div>
@@ -89,6 +94,12 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
               >
                 {formatPrice(product.price)}
               </p>
+
+              {product.is_sold && (
+                <p className="inline-flex w-fit rounded-full border border-gold-accent/50 px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.15em] text-gold-accent">
+                  Sold
+                </p>
+              )}
 
               {product.description && (
                 <p
@@ -144,9 +155,18 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
               )}
 
               <div className="pt-[18px] space-y-[16px]">
-                <ActionPill href={whatsappUrl}>
-                  Enquire on WhatsApp
-                </ActionPill>
+                {product.is_sold ? (
+                  <span
+                    className="inline-block cursor-not-allowed rounded-[9999px] bg-iron-gray/40 px-[32px] py-[16px] text-[15px] tracking-[-0.30px] text-white"
+                    style={{ fontWeight: 500 }}
+                  >
+                    Sold
+                  </span>
+                ) : (
+                  <ActionPill href={whatsappUrl}>
+                    Enquire on WhatsApp
+                  </ActionPill>
+                )}
 
                 <p
                   className="text-center text-[15px] tracking-[-0.30px] text-iron-gray"
@@ -188,12 +208,17 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                         className="object-cover"
                         sizes="(max-width: 768px) 100vw, 25vw"
                       />
-                    ) : (
-                      <div className="absolute inset-0 flex items-center justify-center text-iron-gray text-sm">
-                        No image
-                      </div>
-                    )}
-                  </div>
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center text-iron-gray text-sm">
+                          No image
+                        </div>
+                      )}
+                      {related.is_sold && (
+                        <span className="absolute top-3 left-3 rounded-full bg-black/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-white backdrop-blur-sm">
+                          Sold
+                        </span>
+                      )}
+                    </div>
                   <h3 className="text-[16px] tracking-[-0.02em] text-black" style={{ fontWeight: 450 }}>
                     {related.name}
                   </h3>

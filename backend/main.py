@@ -44,11 +44,26 @@ class ProductDB(Base):
     colors = Column(JSON, default=list)
     images = Column(JSON, default=list)
     is_featured = Column(Boolean, default=False)
+    is_sold = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
 Base.metadata.create_all(bind=engine)
+
+
+def ensure_schema():
+    with engine.begin() as connection:
+        if engine.dialect.name == "sqlite":
+            columns = connection.execute(text("PRAGMA table_info(products)")).fetchall()
+            column_names = {column[1] for column in columns}
+            if "is_sold" not in column_names:
+                connection.execute(text("ALTER TABLE products ADD COLUMN is_sold BOOLEAN DEFAULT 0"))
+        else:
+            connection.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS is_sold BOOLEAN DEFAULT FALSE"))
+
+
+ensure_schema()
 
 
 class Category(BaseModel):
@@ -73,6 +88,7 @@ class Product(BaseModel):
     colors: List[str] = []
     images: List[str] = []
     is_featured: bool = False
+    is_sold: bool = False
     is_active: bool = True
     created_at: datetime
 
@@ -138,6 +154,7 @@ CATALOG_PRODUCTS = [
         "colors": ["Floral"],
         "images": [product_image("flores.jpeg")],
         "is_featured": True,
+        "is_sold": True,
     },
     {
         "name": "Top Strapless blanco",
@@ -237,6 +254,7 @@ CATALOG_PRODUCTS = [
         "colors": ["Neutral"],
         "images": [product_image("corset.jpeg")],
         "is_featured": False,
+        "is_sold": True,
     },
     {
         "name": "top strapless peplum",
@@ -267,6 +285,7 @@ def seed_data():
     catalog_slugs = {product["slug"] for product in CATALOG_PRODUCTS}
 
     for product_data in CATALOG_PRODUCTS:
+        product_data = {"is_sold": False, **product_data}
         product = db.query(ProductDB).filter(ProductDB.slug == product_data["slug"]).first()
         if product is None:
             db.add(ProductDB(**product_data))
@@ -344,6 +363,7 @@ def get_products(
                 colors=p.colors or [],
                 images=p.images or [],
                 is_featured=p.is_featured,
+                is_sold=p.is_sold,
                 is_active=p.is_active,
                 created_at=p.created_at,
             )
@@ -374,6 +394,7 @@ def get_product(slug: str):
         colors=product.colors or [],
         images=product.images or [],
         is_featured=product.is_featured,
+        is_sold=product.is_sold,
         is_active=product.is_active,
         created_at=product.created_at,
     )
