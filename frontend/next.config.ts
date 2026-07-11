@@ -54,9 +54,13 @@ const nextConfig: NextConfig = {
     dangerouslyAllowLocalIP: process.env.NODE_ENV !== "production",
     remotePatterns,
   },
-  turbopack: {
-    root: process.cwd(),
-  },
+  ...(process.env.NODE_ENV === "development"
+    ? {
+        turbopack: {
+          root: process.cwd(),
+        },
+      }
+    : {}),
 };
 
 export default nextConfig;
