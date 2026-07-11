@@ -4,6 +4,10 @@ import { useEffect } from "react";
 
 export default function GlobalCursor() {
   useEffect(() => {
+    const canUseCustomCursor = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+
+    if (!canUseCustomCursor) return;
+
     let cursor: HTMLDivElement | null = null;
     let cursorVisible = false;
 
