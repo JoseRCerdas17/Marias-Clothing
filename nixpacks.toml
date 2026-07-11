@@ -1,0 +1,5 @@
+[providers]
+python = "3.12"
+
+[phases.install]
+cmds = ["python -m pip install -r backend/requirements.txt"]
