@@ -204,7 +204,7 @@ function ProductHero({ products }: { products: Product[] }) {
           className="mt-[18px] text-[15px] tracking-[-0.30px] text-iron-gray"
           style={{ fontFamily: "var(--font-dm-sans)", fontWeight: 400 }}
         >
-          Free shipping on orders over ₡200
+          Entrega gratis en el parque 
         </p>
       </AnimatedSection>
 
