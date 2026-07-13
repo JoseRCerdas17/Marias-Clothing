@@ -81,6 +81,11 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
                         Sold
                       </span>
                     )}
+                    {product.availability_note && (
+                      <span className="absolute top-3 right-3 rounded-full bg-white/85 px-3 py-1 text-[10px] font-medium tracking-[-0.02em] text-black backdrop-blur-sm">
+                        {product.availability_note}
+                      </span>
+                    )}
                   </div>
 
                   <div className="space-y-[6px]">

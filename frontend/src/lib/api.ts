@@ -18,6 +18,7 @@ export interface Product {
   sizes: string[];
   colors: string[];
   images: string[];
+  availability_note: string | null;
   is_featured: boolean;
   is_sold: boolean;
   is_active: boolean;

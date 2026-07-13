@@ -67,6 +67,11 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                       Sold
                     </span>
                   )}
+                  {product.availability_note && index === 0 && (
+                    <span className="absolute top-4 right-4 rounded-full bg-white/85 px-4 py-2 text-[11px] font-medium tracking-[-0.02em] text-black backdrop-blur-sm">
+                      {product.availability_note}
+                    </span>
+                  )}
                 </div>
               ))}
             </div>
@@ -98,6 +103,12 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
               {product.is_sold && (
                 <p className="inline-flex w-fit rounded-full border border-gold-accent/50 px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.15em] text-gold-accent">
                   Sold
+                </p>
+              )}
+
+              {product.availability_note && (
+                <p className="inline-flex w-fit rounded-full border border-white/20 px-4 py-2 text-[12px] font-medium tracking-[-0.02em] text-bone-white">
+                  {product.availability_note}
                 </p>
               )}
 
@@ -216,6 +227,11 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                       {related.is_sold && (
                         <span className="absolute top-3 left-3 rounded-full bg-black/80 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.15em] text-white backdrop-blur-sm">
                           Sold
+                        </span>
+                      )}
+                      {related.availability_note && (
+                        <span className="absolute top-3 right-3 rounded-full bg-white/85 px-3 py-1 text-[10px] font-medium tracking-[-0.02em] text-black backdrop-blur-sm">
+                          {related.availability_note}
                         </span>
                       )}
                     </div>

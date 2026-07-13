@@ -87,6 +87,11 @@ export default function QuickViewModal({ product, isOpen, onClose }: QuickViewMo
                 Sold
               </span>
             )}
+            {product.availability_note && (
+              <span className="absolute top-4 right-4 rounded-full bg-white/85 px-4 py-2 text-[11px] font-medium tracking-[-0.02em] text-black backdrop-blur-sm">
+                {product.availability_note}
+              </span>
+            )}
           </div>
 
           <div className="p-6 md:p-10 flex flex-col">
@@ -116,6 +121,12 @@ export default function QuickViewModal({ product, isOpen, onClose }: QuickViewMo
             {product.is_sold && (
               <p className="mb-4 inline-flex w-fit rounded-full border border-gold-accent/50 px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.15em] text-gold-accent">
                 Sold
+              </p>
+            )}
+
+            {product.availability_note && (
+              <p className="mb-4 inline-flex w-fit rounded-full border border-white/20 px-4 py-2 text-[12px] font-medium tracking-[-0.02em] text-bone-white">
+                {product.availability_note}
               </p>
             )}
 

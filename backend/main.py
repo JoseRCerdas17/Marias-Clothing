@@ -43,6 +43,7 @@ class ProductDB(Base):
     sizes = Column(JSON, default=list)
     colors = Column(JSON, default=list)
     images = Column(JSON, default=list)
+    availability_note = Column(String(200))
     is_featured = Column(Boolean, default=False)
     is_sold = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
@@ -59,8 +60,11 @@ def ensure_schema():
             column_names = {column[1] for column in columns}
             if "is_sold" not in column_names:
                 connection.execute(text("ALTER TABLE products ADD COLUMN is_sold BOOLEAN DEFAULT 0"))
+            if "availability_note" not in column_names:
+                connection.execute(text("ALTER TABLE products ADD COLUMN availability_note VARCHAR(200)"))
         else:
             connection.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS is_sold BOOLEAN DEFAULT FALSE"))
+            connection.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS availability_note VARCHAR(200)"))
 
 
 ensure_schema()
@@ -87,6 +91,7 @@ class Product(BaseModel):
     sizes: List[str] = []
     colors: List[str] = []
     images: List[str] = []
+    availability_note: Optional[str] = None
     is_featured: bool = False
     is_sold: bool = False
     is_active: bool = True
@@ -132,6 +137,7 @@ CATALOG_PRODUCTS = [
         "colors": ["Yellow"],
         "images": [product_image("amarilla.jpeg")],
         "is_featured": True,
+        "is_sold": True,
     },
     {
         "name": "Top Fruncido",
@@ -221,7 +227,7 @@ CATALOG_PRODUCTS = [
         "colors": ["Black", "White"],
         "images": [product_image("blancoynegro.jpeg")],
         "is_featured": False,
-        "is_sold": True,
+        "availability_note": "Only black available",
     },
     {
         "name": "Top negro",
@@ -286,7 +292,7 @@ def seed_data():
     catalog_slugs = {product["slug"] for product in CATALOG_PRODUCTS}
 
     for product_data in CATALOG_PRODUCTS:
-        product_data = {"is_sold": False, **product_data}
+        product_data = {"availability_note": None, "is_sold": False, **product_data}
         product = db.query(ProductDB).filter(ProductDB.slug == product_data["slug"]).first()
         if product is None:
             db.add(ProductDB(**product_data))
@@ -363,6 +369,7 @@ def get_products(
                 sizes=p.sizes or [],
                 colors=p.colors or [],
                 images=p.images or [],
+                availability_note=p.availability_note,
                 is_featured=p.is_featured,
                 is_sold=p.is_sold,
                 is_active=p.is_active,
@@ -394,6 +401,7 @@ def get_product(slug: str):
         sizes=product.sizes or [],
         colors=product.colors or [],
         images=product.images or [],
+        availability_note=product.availability_note,
         is_featured=product.is_featured,
         is_sold=product.is_sold,
         is_active=product.is_active,

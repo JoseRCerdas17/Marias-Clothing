@@ -265,6 +265,11 @@ function ProductShowcase({ products, title, subtitle, imageIndex = 0, reverse = 
                         Sold
                       </span>
                     )}
+                    {product.availability_note && (
+                      <span className="absolute top-4 right-4 rounded-full bg-white/85 px-3 py-1 text-[10px] font-medium tracking-[-0.02em] text-black backdrop-blur-sm">
+                        {product.availability_note}
+                      </span>
+                    )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent md:opacity-0 opacity-100 transition-opacity duration-500" />
 
                     <div className="absolute bottom-4 left-4 right-4 flex gap-2 md:opacity-0 opacity-100 transition-all duration-300 md:translate-y-2 translate-y-0 group-hover:md:translate-y-0">
