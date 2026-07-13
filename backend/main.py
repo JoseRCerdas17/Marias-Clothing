@@ -132,6 +132,7 @@ CATALOG_PRODUCTS = [
         "colors": ["Yellow"],
         "images": [product_image("amarilla.jpeg")],
         "is_featured": True,
+        "is_sold": True,
     },
     {
         "name": "Top Fruncido",
@@ -221,6 +222,7 @@ CATALOG_PRODUCTS = [
         "colors": ["Black", "White"],
         "images": [product_image("blancoynegro.jpeg")],
         "is_featured": False,
+        "is_sold": True,
     },
     {
         "name": "Top negro",
