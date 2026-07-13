@@ -132,7 +132,6 @@ CATALOG_PRODUCTS = [
         "colors": ["Yellow"],
         "images": [product_image("amarilla.jpeg")],
         "is_featured": True,
-        "is_sold": True,
     },
     {
         "name": "Top Fruncido",
