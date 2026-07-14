@@ -60,6 +60,10 @@ function imageSrc(image?: string) {
   return image.startsWith("/product-images/") ? `${API_URL}${image}` : image;
 }
 
+function randomWelcomeMessage() {
+  return welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)];
+}
+
 export default function AdminPage() {
   const [token, setToken] = useState("");
   const [tokenInput, setTokenInput] = useState("");
@@ -76,16 +80,43 @@ export default function AdminPage() {
   const soldProducts = products.filter((product) => product.is_sold && product.is_active).length;
 
   useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setWelcomeMessage(welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)]);
-    }, 0);
+    const showRandomWelcome = () => {
+      setWelcomeMessage(randomWelcomeMessage());
+      setShowWelcome(true);
+    };
+
+    const scheduleWelcome = () => window.setTimeout(showRandomWelcome, 0);
+    const initialTimer = scheduleWelcome();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        scheduleWelcome();
+      }
+    };
+
+    const handleFocus = () => {
+      scheduleWelcome();
+    };
+
+    const handlePageShow = () => {
+      scheduleWelcome();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("pageshow", handlePageShow);
 
     fetch(`${API_URL}/categories`)
       .then((res) => res.json())
       .then(setCategories)
       .catch(() => setCategories([]));
 
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(initialTimer);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("pageshow", handlePageShow);
+    };
   }, []);
 
   async function adminRequest<T>(path: string, options: RequestInit = {}, authToken = token): Promise<T> {
