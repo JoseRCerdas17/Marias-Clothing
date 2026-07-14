@@ -1,10 +1,10 @@
 'use client';
 
 import { useRef, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { Product } from "@/lib/api";
 import { formatPrice } from "@/lib/format";
+import ProductImage from "@/components/ProductImage";
 import ScrollProgress from "@/components/ScrollProgress";
 import BackToTop from "@/components/BackToTop";
 import QuickViewModal from "@/components/QuickViewModal";
@@ -139,13 +139,10 @@ function ProductHero({ products }: { products: Product[] }) {
         {heroProduct && (
           <div className="relative w-[65%] h-[75%] z-10 animate-float">
             <div className="absolute inset-0 bg-gradient-to-br from-gold-accent/20 to-transparent rounded-full blur-3xl opacity-30" />
-            <Image
+            <ProductImage
               src={heroProduct.images[0]}
               alt={heroProduct.name}
-              fill
               className="object-contain drop-shadow-[0_10px_40px_rgba(201,169,98,0.2)]"
-              priority
-              sizes="(max-width: 768px) 100vw, 60vw"
             />
           </div>
         )}
@@ -164,12 +161,10 @@ function ProductHero({ products }: { products: Product[] }) {
               onMouseMove={handleFloatMouseMove(index)}
               onMouseLeave={handleFloatMouseLeave(index)}
             >
-              <Image
+              <ProductImage
                 src={product.images[0]}
                 alt={product.name}
-                fill
                 className="object-contain drop-shadow-[0_10px_30px_rgba(0,0,0,0.5)]"
-                sizes="15vw"
               />
             </div>
           );
@@ -248,12 +243,10 @@ function ProductShowcase({ products, title, subtitle, imageIndex = 0, reverse = 
                 <div className="glass-light rounded-[20px] p-[20px] md:p-[26px] transition-all duration-500 group-hover:-translate-y-2 group-hover:shadow-[0_20px_60px_rgba(0,0,0,0.15)]">
                   <div className="relative aspect-[3/4] mb-[18px] overflow-hidden rounded-[12px] bg-white/50">
                     {displayImage ? (
-                      <Image
+                      <ProductImage
                         src={displayImage}
                         alt={product.name}
-                        fill
                         className="object-cover transition-transform duration-700 group-hover:scale-110"
-                        sizes="(max-width: 768px) 100vw, 25vw"
                       />
                     ) : (
                       <div className="absolute inset-0 flex items-center justify-center text-iron-gray text-sm">

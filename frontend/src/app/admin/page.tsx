@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useState } from "react";
-import Image from "next/image";
+import ProductImage from "@/components/ProductImage";
 import { Category, Product } from "@/lib/api";
 import { formatPrice } from "@/lib/format";
 
@@ -287,13 +287,10 @@ export default function AdminPage() {
                   <article key={product.id} className={`glass grid gap-4 rounded-[20px] p-4 md:grid-cols-[96px_1fr_auto] ${!product.is_active ? "opacity-50" : ""}`}>
                     <div className="relative h-[128px] overflow-hidden rounded-[14px] bg-white/5 md:h-[120px]">
                       {product.images[0] ? (
-                        <Image
+                        <ProductImage
                           src={imageSrc(product.images[0])}
                           alt={product.name}
-                          fill
-                          unoptimized
                           className="object-cover"
-                          sizes="96px"
                         />
                       ) : null}
                     </div>

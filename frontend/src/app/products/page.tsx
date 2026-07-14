@@ -1,6 +1,6 @@
-import Image from "next/image";
 import Link from "next/link";
 import Header from "@/components/Header";
+import ProductImage from "@/components/ProductImage";
 import { getProducts } from "@/lib/api";
 import { formatPrice } from "@/lib/format";
 
@@ -55,12 +55,10 @@ export default async function ProductsPage() {
                 >
                   <div className="relative aspect-[3/4] mb-[18px] overflow-hidden rounded-[12px] bg-ash-veil/10">
                     {product.images[0] ? (
-                      <Image
+                      <ProductImage
                         src={product.images[0]}
                         alt={product.name}
-                        fill
                         className="object-cover transition-transform duration-500 group-hover:scale-105"
-                        sizes="(max-width: 768px) 100vw, 25vw"
                       />
                     ) : (
                       <div className="absolute inset-0 flex items-center justify-center text-iron-gray text-sm">

@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useCallback } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { Product } from "@/lib/api";
 import { formatPrice } from "@/lib/format";
+import ProductImage from "@/components/ProductImage";
 
 interface QuickViewModalProps {
   product: Product | null;
@@ -70,12 +70,10 @@ export default function QuickViewModal({ product, isOpen, onClose }: QuickViewMo
         <div className="grid md:grid-cols-2 gap-0">
           <div className="relative aspect-[3/4] md:aspect-auto md:min-h-[400px] bg-white/5">
             {product.images[0] ? (
-              <Image
+              <ProductImage
                 src={product.images[0]}
                 alt={product.name}
-                fill
                 className="object-cover md:rounded-tl-[24px] md:rounded-bl-[24px]"
-                sizes="(max-width: 768px) 100vw, 50vw"
               />
             ) : (
               <div className="absolute inset-0 flex items-center justify-center text-iron-gray">

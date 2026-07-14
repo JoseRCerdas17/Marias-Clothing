@@ -1,7 +1,7 @@
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import Header from "@/components/Header";
+import ProductImage from "@/components/ProductImage";
 import { getProduct, getProducts } from "@/lib/api";
 import { formatPrice } from "@/lib/format";
 
@@ -54,13 +54,10 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                   key={index}
                   className="relative aspect-[3/4] rounded-[17.6px] overflow-hidden bg-ash-veil/10 border border-white/10"
                 >
-                  <Image
+                  <ProductImage
                     src={image}
                     alt={`${product.name} - Image ${index + 1}`}
-                    fill
                     className="object-cover"
-                    sizes="(max-width: 768px) 100vw, 50vw"
-                    priority={index === 0}
                   />
                   {product.is_sold && index === 0 && (
                     <span className="absolute top-4 left-4 rounded-full bg-black/80 px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.15em] text-white backdrop-blur-sm">
@@ -212,12 +209,10 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
                 >
                   <div className="relative aspect-[3/4] mb-[18px] overflow-hidden rounded-[12px] bg-ash-veil/20">
                     {related.images[0] ? (
-                      <Image
+                      <ProductImage
                         src={related.images[0]}
                         alt={related.name}
-                        fill
                         className="object-cover"
-                        sizes="(max-width: 768px) 100vw, 25vw"
                       />
                       ) : (
                         <div className="absolute inset-0 flex items-center justify-center text-iron-gray text-sm">

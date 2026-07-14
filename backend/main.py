@@ -9,7 +9,7 @@ from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, D
 from sqlalchemy.orm import declarative_base, sessionmaker
 from datetime import datetime
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import parse_qs, quote, urlparse
 import re
 
 load_dotenv()
@@ -158,6 +158,16 @@ def product_image(filename: str) -> str:
     return f"/product-images/{quote(filename)}"
 
 
+def normalize_image_url(image: str) -> str:
+    parsed = urlparse(image)
+    if parsed.hostname in {"www.bing.com", "bing.com"} and parsed.path.startswith("/images/search"):
+        query = parse_qs(parsed.query)
+        direct_url = query.get("mediaurl") or query.get("cdnurl")
+        if direct_url:
+            return direct_url[0]
+    return image
+
+
 def require_admin(authorization: Optional[str] = Header(None)):
     admin_token = os.getenv("ADMIN_TOKEN")
     if not admin_token:
@@ -194,6 +204,10 @@ def validate_product_payload(payload: ProductAdminCreate | ProductAdminUpdate):
         raise HTTPException(status_code=400, detail="Image URLs cannot be empty")
 
 
+def clean_image_list(images: List[str]) -> List[str]:
+    return [normalize_image_url(image.strip()) for image in images if image.strip()]
+
+
 def serialize_product(db, product: ProductDB) -> Product:
     cat = db.query(CategoryDB).filter(CategoryDB.id == product.category_id).first()
     return Product(
@@ -206,7 +220,7 @@ def serialize_product(db, product: ProductDB) -> Product:
         category_name=cat.name if cat else None,
         sizes=product.sizes or [],
         colors=product.colors or [],
-        images=product.images or [],
+        images=clean_image_list(product.images or []),
         availability_note=product.availability_note,
         is_featured=product.is_featured,
         is_sold=product.is_sold,
@@ -428,7 +442,7 @@ def admin_create_product(payload: ProductAdminCreate):
         category_id=payload.category_id,
         sizes=payload.sizes,
         colors=payload.colors,
-        images=payload.images,
+        images=clean_image_list(payload.images),
         availability_note=payload.availability_note.strip() if payload.availability_note else None,
         is_featured=payload.is_featured,
         is_sold=payload.is_sold,
@@ -458,6 +472,8 @@ def admin_update_product(product_id: int, payload: ProductAdminUpdate):
         updates["description"] = updates["description"].strip()
     if "availability_note" in updates and updates["availability_note"]:
         updates["availability_note"] = updates["availability_note"].strip()
+    if "images" in updates and updates["images"] is not None:
+        updates["images"] = clean_image_list(updates["images"])
 
     for field, value in updates.items():
         setattr(product, field, value)
