@@ -2,6 +2,7 @@ import os
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from dotenv import load_dotenv
 from pydantic import BaseModel, ConfigDict
 from typing import Optional, List
 from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, DateTime, JSON, text
@@ -10,6 +11,8 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
 import re
+
+load_dotenv()
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
