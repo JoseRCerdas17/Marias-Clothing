@@ -7,6 +7,19 @@ import { formatPrice } from "@/lib/format";
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
 
+const welcomeMessages = [
+  "Hola bella",
+  "Hola guapa",
+  "Te amo",
+  "Te amo demasiado",
+  "Mi princesa",
+  "Mi reina",
+  "Mi amor bonito",
+  "Hola mi vida",
+  "Mi cielo",
+  "Mi corazón",
+];
+
 interface ProductFormState {
   name: string;
   description: string;
@@ -56,6 +69,11 @@ export default function AdminPage() {
   const [priceDrafts, setPriceDrafts] = useState<Record<number, string>>({});
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(true);
+  const [welcomeMessage] = useState(() => welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)]);
+
+  const activeProducts = products.filter((product) => product.is_active).length;
+  const soldProducts = products.filter((product) => product.is_sold && product.is_active).length;
 
   useEffect(() => {
     fetch(`${API_URL}/categories`)
@@ -196,36 +214,91 @@ export default function AdminPage() {
   }
 
   return (
-    <main className="min-h-screen bg-carbon-canvas px-5 py-10 text-bone-white md:px-8">
-      <div className="mx-auto max-w-[1200px] space-y-8">
-        <header className="flex flex-col gap-4 border-b border-white/10 pb-8 md:flex-row md:items-end md:justify-between">
+    <main className="relative min-h-screen overflow-hidden bg-carbon-canvas px-5 py-8 text-bone-white md:px-8 md:py-12">
+      <div className="pointer-events-none absolute inset-0 gradient-mesh opacity-80" />
+      <div className="pointer-events-none absolute left-1/2 top-0 h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-gold-accent/10 blur-[140px]" />
+
+      {showWelcome && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 px-5 backdrop-blur-md animate-fade-in">
+          <div className="relative w-full max-w-[560px] overflow-hidden rounded-[32px] border border-white/10 bg-carbon-canvas/95 px-8 py-10 text-center shadow-[0_30px_120px_rgba(0,0,0,0.65)] animate-scale-in md:px-12 md:py-14">
+            <button
+              className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-smoke transition-all duration-300 hover:border-gold-accent/60 hover:text-gold-accent"
+              onClick={() => setShowWelcome(false)}
+              aria-label="Close welcome message"
+            >
+              ×
+            </button>
+            <div className="mx-auto mb-7 flex h-16 w-16 items-center justify-center rounded-full border border-gold-accent/30 bg-gold-accent/10 text-[28px] text-gold-accent">
+              ♥
+            </div>
+            <p className="text-[13px] uppercase tracking-[0.28em] text-gold-accent">Bienvenida</p>
+            <h2 className="mt-4 text-[48px] tracking-[-2.35px] text-white md:text-[64px]" style={{ fontFamily: "var(--font-cormorant)", lineHeight: 0.9 }}>
+              {welcomeMessage}
+            </h2>
+            <p className="mx-auto mt-5 max-w-[360px] text-[15px] leading-relaxed text-iron-gray">
+              Tu panel está listo para cuidar cada pieza del catálogo con amor.
+            </p>
+            <button
+              className="mt-8 rounded-full bg-white px-8 py-4 text-[14px] font-medium text-black transition-all duration-300 hover:bg-gold-accent hover:text-white hover:shadow-[0_12px_40px_rgba(201,169,98,0.25)] active:scale-[0.98]"
+              onClick={() => setShowWelcome(false)}
+            >
+              Continuar
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="relative z-10 mx-auto max-w-[1240px] space-y-8">
+        <header className="glass rounded-[30px] px-6 py-7 md:px-8 md:py-8">
+          <div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-[13px] uppercase tracking-[0.2em] text-gold-accent">Admin</p>
-            <h1 className="mt-2 text-[47px] tracking-[-2.35px]" style={{ fontFamily: "var(--font-cormorant)", lineHeight: 1 }}>
+            <p className="text-[12px] uppercase tracking-[0.28em] text-gold-accent">Maria&apos;s Clothing Admin</p>
+            <h1 className="mt-3 text-[44px] tracking-[-2.35px] md:text-[58px]" style={{ fontFamily: "var(--font-cormorant)", lineHeight: 0.92 }}>
               Product Management
             </h1>
+            <p className="mt-4 max-w-[560px] text-[15px] leading-relaxed text-iron-gray">
+              A quiet workspace for editing prices, availability, and new catalog pieces.
+            </p>
           </div>
 
           {token && (
-            <button className="rounded-full border border-white/15 px-5 py-3 text-[13px] text-smoke hover:text-white" onClick={handleLogout}>
+            <button className="rounded-full border border-white/15 px-5 py-3 text-[13px] text-smoke transition-all duration-300 hover:border-gold-accent/50 hover:text-gold-accent" onClick={handleLogout}>
               Log out
             </button>
+          )}
+          </div>
+
+          {token && (
+            <div className="mt-8 grid gap-3 md:grid-cols-3">
+              <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-iron-gray">Total</p>
+                <p className="mt-2 text-[28px] tracking-[-0.78px] text-white">{products.length}</p>
+              </div>
+              <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-iron-gray">Active</p>
+                <p className="mt-2 text-[28px] tracking-[-0.78px] text-white">{activeProducts}</p>
+              </div>
+              <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-iron-gray">Sold</p>
+                <p className="mt-2 text-[28px] tracking-[-0.78px] text-gold-accent">{soldProducts}</p>
+              </div>
+            </div>
           )}
         </header>
 
         {!token ? (
-          <section className="glass max-w-[520px] rounded-[24px] p-6">
-            <h2 className="text-[26px] tracking-[-0.78px]">Protected Access</h2>
+          <section className="glass mx-auto max-w-[540px] rounded-[28px] p-7 shadow-[0_24px_80px_rgba(0,0,0,0.28)] md:p-8">
+            <h2 className="text-[30px] tracking-[-0.78px]" style={{ fontFamily: "var(--font-cormorant)" }}>Protected Access</h2>
             <p className="mt-3 text-[15px] leading-relaxed text-iron-gray">Enter the admin token configured on the backend.</p>
             <form className="mt-6 space-y-4" onSubmit={handleLogin}>
               <input
-                className="w-full rounded-[14px] border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:border-gold-accent"
+                className="admin-input w-full"
                 type="password"
                 value={tokenInput}
                 onChange={(event) => setTokenInput(event.target.value)}
                 placeholder="Admin token"
               />
-              <button className="rounded-full bg-white px-6 py-3 text-[14px] font-medium text-black hover:bg-gold-accent hover:text-white">
+              <button className="rounded-full bg-white px-7 py-3.5 text-[14px] font-medium text-black transition-all duration-300 hover:bg-gold-accent hover:text-white hover:shadow-[0_12px_40px_rgba(201,169,98,0.2)] active:scale-[0.98]">
                 Unlock Admin
               </button>
             </form>
@@ -233,14 +306,17 @@ export default function AdminPage() {
         ) : (
           <>
             {feedback && (
-              <div className={`rounded-[16px] border px-4 py-3 text-[14px] ${feedback.type === "success" ? "border-gold-accent/50 text-gold-accent" : "border-red-400/50 text-red-300"}`}>
+              <div className={`rounded-[18px] border px-5 py-4 text-[14px] shadow-[0_18px_50px_rgba(0,0,0,0.18)] ${feedback.type === "success" ? "border-gold-accent/50 bg-gold-accent/5 text-gold-accent" : "border-red-400/50 bg-red-400/5 text-red-300"}`}>
                 {feedback.message}
               </div>
             )}
 
-            <section className="glass rounded-[24px] p-6">
-              <h2 className="text-[26px] tracking-[-0.78px]">Add Product</h2>
-              <form className="mt-6 grid gap-4 md:grid-cols-2" onSubmit={handleAddProduct}>
+            <section className="glass rounded-[30px] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.2)] md:p-8">
+              <div className="flex flex-col gap-2">
+                <p className="text-[11px] uppercase tracking-[0.2em] text-gold-accent">Create</p>
+                <h2 className="text-[34px] tracking-[-1.16px]" style={{ fontFamily: "var(--font-cormorant)" }}>Add Product</h2>
+              </div>
+              <form className="mt-7 grid gap-4 md:grid-cols-2" onSubmit={handleAddProduct}>
                 <input className="admin-input" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Name *" />
                 <input className="admin-input" value={form.price} onChange={(event) => setForm({ ...form, price: event.target.value })} placeholder="Price *" type="number" min="1" step="1" />
                 <select className="admin-input" value={form.category_id} onChange={(event) => setForm({ ...form, category_id: event.target.value })}>
@@ -268,7 +344,7 @@ export default function AdminPage() {
                   ))}
                 </div>
 
-                <button className="w-fit rounded-full bg-white px-6 py-3 text-[14px] font-medium text-black hover:bg-gold-accent hover:text-white md:col-span-2">
+                <button className="w-fit rounded-full bg-white px-7 py-3.5 text-[14px] font-medium text-black transition-all duration-300 hover:bg-gold-accent hover:text-white hover:shadow-[0_12px_40px_rgba(201,169,98,0.2)] active:scale-[0.98] md:col-span-2">
                   Add Product
                 </button>
               </form>
@@ -276,16 +352,19 @@ export default function AdminPage() {
 
             <section className="space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-[26px] tracking-[-0.78px]">Products</h2>
-                <button className="rounded-full border border-white/15 px-5 py-3 text-[13px] text-smoke hover:text-white" onClick={() => loadProducts()} disabled={loading}>
+                <div>
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-gold-accent">Inventory</p>
+                  <h2 className="mt-1 text-[34px] tracking-[-1.16px]" style={{ fontFamily: "var(--font-cormorant)" }}>Products</h2>
+                </div>
+                <button className="rounded-full border border-white/15 px-5 py-3 text-[13px] text-smoke transition-all duration-300 hover:border-gold-accent/50 hover:text-gold-accent disabled:opacity-50" onClick={() => loadProducts()} disabled={loading}>
                   {loading ? "Loading..." : "Refresh"}
                 </button>
               </div>
 
               <div className="grid gap-4">
                 {products.map((product) => (
-                  <article key={product.id} className={`glass grid gap-4 rounded-[20px] p-4 md:grid-cols-[96px_1fr_auto] ${!product.is_active ? "opacity-50" : ""}`}>
-                    <div className="relative h-[128px] overflow-hidden rounded-[14px] bg-white/5 md:h-[120px]">
+                  <article key={product.id} className={`glass group grid gap-5 rounded-[24px] p-4 transition-all duration-300 hover:border-white/18 hover:bg-white/[0.045] hover:shadow-[0_24px_80px_rgba(0,0,0,0.24)] md:grid-cols-[112px_1fr_auto] ${!product.is_active ? "opacity-50" : ""}`}>
+                    <div className="relative h-[138px] overflow-hidden rounded-[16px] bg-white/5 md:h-[132px]">
                       {product.images[0] ? (
                         <ProductImage
                           src={imageSrc(product.images[0])}
@@ -296,14 +375,14 @@ export default function AdminPage() {
                     </div>
                     <div className="space-y-2">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="text-[18px] text-white">{product.name}</h3>
-                        {product.is_sold && <span className="rounded-full bg-gold-accent/20 px-2 py-1 text-[11px] uppercase tracking-[0.15em] text-gold-accent">Sold</span>}
-                        {!product.is_active && <span className="rounded-full bg-white/10 px-2 py-1 text-[11px] uppercase tracking-[0.15em] text-smoke">Removed</span>}
+                        <h3 className="text-[20px] tracking-[-0.02em] text-white" style={{ fontFamily: "var(--font-cormorant)" }}>{product.name}</h3>
+                        {product.is_sold && <span className="rounded-full bg-gold-accent/15 px-2.5 py-1 text-[10px] uppercase tracking-[0.15em] text-gold-accent">Sold</span>}
+                        {!product.is_active && <span className="rounded-full bg-white/10 px-2.5 py-1 text-[10px] uppercase tracking-[0.15em] text-smoke">Removed</span>}
                       </div>
                       <p className="text-[14px] text-smoke">{product.category_name || "No category"} · {formatPrice(product.price)}</p>
                       {product.availability_note && <p className="text-[13px] text-gold-accent">{product.availability_note}</p>}
                     </div>
-                    <div className="flex flex-col gap-2 md:min-w-[220px]">
+                    <div className="flex flex-col gap-2 md:min-w-[230px]">
                       <div className="flex gap-2">
                         <input
                           className="admin-input min-w-0 flex-1"
@@ -312,14 +391,14 @@ export default function AdminPage() {
                           type="number"
                           min="1"
                         />
-                        <button className="rounded-full bg-white px-4 py-2 text-[13px] text-black" onClick={() => handlePriceUpdate(product)}>
+                        <button className="rounded-full bg-white px-4 py-2 text-[13px] text-black transition-all duration-300 hover:bg-gold-accent hover:text-white" onClick={() => handlePriceUpdate(product)}>
                           Save
                         </button>
                       </div>
-                      <button className="rounded-full border border-white/15 px-4 py-2 text-[13px] text-smoke hover:text-white" onClick={() => updateProduct(product.id, { is_sold: !product.is_sold }, product.is_sold ? "Product marked available" : "Product marked sold") }>
+                      <button className="rounded-full border border-white/15 px-4 py-2 text-[13px] text-smoke transition-all duration-300 hover:border-gold-accent/50 hover:text-gold-accent" onClick={() => updateProduct(product.id, { is_sold: !product.is_sold }, product.is_sold ? "Product marked available" : "Product marked sold") }>
                         {product.is_sold ? "Mark available" : "Mark sold"}
                       </button>
-                      <button className="rounded-full border border-red-400/40 px-4 py-2 text-[13px] text-red-300 hover:text-red-200" onClick={() => handleDelete(product)} disabled={!product.is_active}>
+                      <button className="rounded-full border border-red-400/30 px-4 py-2 text-[13px] text-red-300 transition-all duration-300 hover:border-red-300/70 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-40" onClick={() => handleDelete(product)} disabled={!product.is_active}>
                         Delete
                       </button>
                     </div>

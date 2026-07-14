@@ -119,16 +119,23 @@
 }
 
 .admin-input {
-  border-radius: 14px;
+  border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.05);
-  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.045);
+  padding: 13px 15px;
   color: var(--color-bone-white);
   outline: none;
+  transition: border-color 220ms ease, background 220ms ease, box-shadow 220ms ease;
+}
+
+.admin-input:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .admin-input:focus {
   border-color: var(--color-gold-accent);
+  box-shadow: 0 0 0 4px rgba(201, 169, 98, 0.08);
 }
 
 .admin-input::placeholder {
