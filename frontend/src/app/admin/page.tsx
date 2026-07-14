@@ -70,16 +70,22 @@ export default function AdminPage() {
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [showWelcome, setShowWelcome] = useState(true);
-  const [welcomeMessage] = useState(() => welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)]);
+  const [welcomeMessage, setWelcomeMessage] = useState(welcomeMessages[0]);
 
   const activeProducts = products.filter((product) => product.is_active).length;
   const soldProducts = products.filter((product) => product.is_sold && product.is_active).length;
 
   useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setWelcomeMessage(welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)]);
+    }, 0);
+
     fetch(`${API_URL}/categories`)
       .then((res) => res.json())
       .then(setCategories)
       .catch(() => setCategories([]));
+
+    return () => window.clearTimeout(timer);
   }, []);
 
   async function adminRequest<T>(path: string, options: RequestInit = {}, authToken = token): Promise<T> {
