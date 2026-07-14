@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, Query
+from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict
@@ -9,6 +9,7 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
+import re
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
@@ -98,6 +99,34 @@ class Product(BaseModel):
     created_at: datetime
 
 
+class ProductAdminCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    price: float
+    category_id: Optional[int] = None
+    sizes: List[str] = []
+    colors: List[str] = []
+    images: List[str] = []
+    availability_note: Optional[str] = None
+    is_featured: bool = False
+    is_sold: bool = False
+    is_active: bool = True
+
+
+class ProductAdminUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    price: Optional[float] = None
+    category_id: Optional[int] = None
+    sizes: Optional[List[str]] = None
+    colors: Optional[List[str]] = None
+    images: Optional[List[str]] = None
+    availability_note: Optional[str] = None
+    is_featured: Optional[bool] = None
+    is_sold: Optional[bool] = None
+    is_active: Optional[bool] = None
+
+
 app = FastAPI(title="Maria's Clothing API", version="1.0.0")
 
 PRODUCT_IMAGES_DIR = Path(__file__).resolve().parent.parent / "ropa"
@@ -124,6 +153,63 @@ def get_db():
 
 def product_image(filename: str) -> str:
     return f"/product-images/{quote(filename)}"
+
+
+def require_admin(authorization: Optional[str] = Header(None)):
+    admin_token = os.getenv("ADMIN_TOKEN")
+    if not admin_token:
+        raise HTTPException(status_code=503, detail="Admin access is not configured")
+
+    expected = f"Bearer {admin_token}"
+    if authorization != expected:
+        raise HTTPException(status_code=401, detail="Invalid admin token")
+
+
+def slugify(value: str) -> str:
+    slug = re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")
+    return slug or "product"
+
+
+def unique_slug(db, name: str) -> str:
+    base_slug = slugify(name)
+    slug = base_slug
+    suffix = 2
+
+    while db.query(ProductDB).filter(ProductDB.slug == slug).first():
+        slug = f"{base_slug}-{suffix}"
+        suffix += 1
+
+    return slug
+
+
+def validate_product_payload(payload: ProductAdminCreate | ProductAdminUpdate):
+    if payload.name is not None and not payload.name.strip():
+        raise HTTPException(status_code=400, detail="Product name is required")
+    if payload.price is not None and payload.price <= 0:
+        raise HTTPException(status_code=400, detail="Price must be a positive number")
+    if payload.images is not None and any(not image.strip() for image in payload.images):
+        raise HTTPException(status_code=400, detail="Image URLs cannot be empty")
+
+
+def serialize_product(db, product: ProductDB) -> Product:
+    cat = db.query(CategoryDB).filter(CategoryDB.id == product.category_id).first()
+    return Product(
+        id=product.id,
+        name=product.name,
+        slug=product.slug,
+        description=product.description,
+        price=product.price,
+        category_id=product.category_id,
+        category_name=cat.name if cat else None,
+        sizes=product.sizes or [],
+        colors=product.colors or [],
+        images=product.images or [],
+        availability_note=product.availability_note,
+        is_featured=product.is_featured,
+        is_sold=product.is_sold,
+        is_active=product.is_active,
+        created_at=product.created_at,
+    )
 
 
 CATALOG_PRODUCTS = [
@@ -289,23 +375,11 @@ def seed_data():
         db.add_all(categories)
         db.commit()
 
-    catalog_slugs = {product["slug"] for product in CATALOG_PRODUCTS}
-
     for product_data in CATALOG_PRODUCTS:
         product_data = {"availability_note": None, "is_sold": False, **product_data}
         product = db.query(ProductDB).filter(ProductDB.slug == product_data["slug"]).first()
         if product is None:
             db.add(ProductDB(**product_data))
-            continue
-
-        for field, value in product_data.items():
-            setattr(product, field, value)
-        product.is_active = True
-
-    db.query(ProductDB).filter(ProductDB.slug.notin_(catalog_slugs)).update(
-        {ProductDB.is_active: False},
-        synchronize_session=False,
-    )
 
     db.commit()
     db.close()
@@ -328,6 +402,84 @@ def get_categories():
     categories = db.query(CategoryDB).all()
     db.close()
     return categories
+
+
+@app.get("/admin/products", response_model=List[Product], dependencies=[Depends(require_admin)])
+def admin_get_products():
+    db = SessionLocal()
+    products = db.query(ProductDB).order_by(ProductDB.created_at.desc()).all()
+    result = [serialize_product(db, product) for product in products]
+    db.close()
+    return result
+
+
+@app.post("/admin/products", response_model=Product, dependencies=[Depends(require_admin)])
+def admin_create_product(payload: ProductAdminCreate):
+    validate_product_payload(payload)
+    db = SessionLocal()
+    product = ProductDB(
+        name=payload.name.strip(),
+        slug=unique_slug(db, payload.name),
+        description=payload.description.strip() if payload.description else None,
+        price=payload.price,
+        category_id=payload.category_id,
+        sizes=payload.sizes,
+        colors=payload.colors,
+        images=payload.images,
+        availability_note=payload.availability_note.strip() if payload.availability_note else None,
+        is_featured=payload.is_featured,
+        is_sold=payload.is_sold,
+        is_active=payload.is_active,
+    )
+    db.add(product)
+    db.commit()
+    db.refresh(product)
+    result = serialize_product(db, product)
+    db.close()
+    return result
+
+
+@app.patch("/admin/products/{product_id}", response_model=Product, dependencies=[Depends(require_admin)])
+def admin_update_product(product_id: int, payload: ProductAdminUpdate):
+    validate_product_payload(payload)
+    db = SessionLocal()
+    product = db.query(ProductDB).filter(ProductDB.id == product_id).first()
+    if not product:
+        db.close()
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    updates = payload.model_dump(exclude_unset=True)
+    if "name" in updates and updates["name"] is not None:
+        updates["name"] = updates["name"].strip()
+    if "description" in updates and updates["description"]:
+        updates["description"] = updates["description"].strip()
+    if "availability_note" in updates and updates["availability_note"]:
+        updates["availability_note"] = updates["availability_note"].strip()
+
+    for field, value in updates.items():
+        setattr(product, field, value)
+
+    db.commit()
+    db.refresh(product)
+    result = serialize_product(db, product)
+    db.close()
+    return result
+
+
+@app.delete("/admin/products/{product_id}", response_model=Product, dependencies=[Depends(require_admin)])
+def admin_delete_product(product_id: int):
+    db = SessionLocal()
+    product = db.query(ProductDB).filter(ProductDB.id == product_id).first()
+    if not product:
+        db.close()
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    product.is_active = False
+    db.commit()
+    db.refresh(product)
+    result = serialize_product(db, product)
+    db.close()
+    return result
 
 
 @app.get("/products", response_model=List[Product])
@@ -354,28 +506,7 @@ def get_products(
 
     products = query.order_by(ProductDB.created_at.desc()).limit(limit).all()
 
-    result = []
-    for p in products:
-        cat = db.query(CategoryDB).filter(CategoryDB.id == p.category_id).first()
-        result.append(
-            Product(
-                id=p.id,
-                name=p.name,
-                slug=p.slug,
-                description=p.description,
-                price=p.price,
-                category_id=p.category_id,
-                category_name=cat.name if cat else None,
-                sizes=p.sizes or [],
-                colors=p.colors or [],
-                images=p.images or [],
-                availability_note=p.availability_note,
-                is_featured=p.is_featured,
-                is_sold=p.is_sold,
-                is_active=p.is_active,
-                created_at=p.created_at,
-            )
-        )
+    result = [serialize_product(db, product) for product in products]
     db.close()
     return result
 
@@ -388,25 +519,9 @@ def get_product(slug: str):
         db.close()
         return {"error": "Product not found"}, 404
 
-    cat = db.query(CategoryDB).filter(CategoryDB.id == product.category_id).first()
+    result = serialize_product(db, product)
     db.close()
-    return Product(
-        id=product.id,
-        name=product.name,
-        slug=product.slug,
-        description=product.description,
-        price=product.price,
-        category_id=product.category_id,
-        category_name=cat.name if cat else None,
-        sizes=product.sizes or [],
-        colors=product.colors or [],
-        images=product.images or [],
-        availability_note=product.availability_note,
-        is_featured=product.is_featured,
-        is_sold=product.is_sold,
-        is_active=product.is_active,
-        created_at=product.created_at,
-    )
+    return result
 
 
 if __name__ == "__main__":

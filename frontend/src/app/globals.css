@@ -118,6 +118,28 @@
   border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
+.admin-input {
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 12px 14px;
+  color: var(--color-bone-white);
+  outline: none;
+}
+
+.admin-input:focus {
+  border-color: var(--color-gold-accent);
+}
+
+.admin-input::placeholder {
+  color: var(--color-iron-gray);
+}
+
+.admin-input option {
+  background: var(--color-carbon-canvas);
+  color: var(--color-bone-white);
+}
+
 .gradient-text {
   background: linear-gradient(135deg, var(--color-bone-white) 0%, var(--color-gold-accent) 50%, var(--color-bone-white) 100%);
   -webkit-background-clip: text;
