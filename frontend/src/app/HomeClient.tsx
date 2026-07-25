@@ -2,8 +2,9 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { Product } from "@/lib/api";
-import { formatPrice } from "@/lib/format";
+import { Product, UpcomingProduct } from "@/lib/api";
+import { formatArrivalMonth, formatPrice } from "@/lib/format";
+import ImageCarousel from "@/components/ImageCarousel";
 import ProductImage from "@/components/ProductImage";
 import ScrollProgress from "@/components/ScrollProgress";
 import BackToTop from "@/components/BackToTop";
@@ -326,6 +327,56 @@ function ProductShowcase({ products, title, subtitle, imageIndex = 0, reverse = 
   );
 }
 
+function UpcomingTeaser({ products }: { products: UpcomingProduct[] }) {
+  if (products.length === 0) return null;
+
+  return (
+    <section className="bg-carbon-canvas px-6 py-[100px] relative overflow-hidden">
+      <div className="pointer-events-none absolute left-1/2 top-0 h-[360px] w-[360px] -translate-x-1/2 rounded-full bg-gold-accent/10 blur-[120px]" />
+      <div className="mx-auto max-w-[1200px] relative z-10">
+        <AnimatedSection>
+          <SectionTitle label="Muy pronto" title="Próximos ingresos" />
+        </AnimatedSection>
+
+        <div className="grid grid-cols-1 gap-[18px] md:grid-cols-3">
+          {products.map((product, index) => (
+            <AnimatedSection key={product.id} delay={index * 100}>
+              <article className="group rounded-[20px] border border-white/10 bg-white/[0.03] p-[20px] transition-all duration-500 hover:-translate-y-2 hover:border-white/20 hover:shadow-[0_20px_60px_rgba(0,0,0,0.25)]">
+                <ImageCarousel
+                  images={product.images}
+                  alt={product.name}
+                  className="mb-[18px] aspect-[3/4] rounded-[12px] bg-ash-veil/10"
+                  imageClassName="object-cover transition-transform duration-700 group-hover:scale-110"
+                >
+                  <span className="absolute left-4 top-4 rounded-full bg-gold-accent px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-black">
+                    Próximamente
+                  </span>
+                </ImageCarousel>
+
+                <div className="space-y-[7px]">
+                  <p className="text-[13px] tracking-[-0.26px] text-iron-gray">
+                    {product.category_name || "Nueva pieza"}
+                  </p>
+                  <h3 className="text-[18px] tracking-[-0.02em] text-white" style={{ fontFamily: "var(--font-cormorant)", fontWeight: 500 }}>
+                    {product.name}
+                  </h3>
+                  <p className="text-[14px] tracking-[-0.30px] text-gold-accent">
+                    {formatArrivalMonth(product.expected_arrival_date)}
+                  </p>
+                </div>
+              </article>
+            </AnimatedSection>
+          ))}
+        </div>
+
+        <AnimatedSection delay={350} className="mt-[60px] text-center">
+          <MagneticButton href="/proximamente">Ver todo</MagneticButton>
+        </AnimatedSection>
+      </div>
+    </section>
+  );
+}
+
 function Footer() {
   return (
     <footer className="bg-carbon-canvas border-t border-white/5 py-[60px] px-6 relative">
@@ -355,9 +406,10 @@ function Footer() {
 interface HomeClientProps {
   products: Product[];
   allProducts: Product[];
+  upcomingProducts: UpcomingProduct[];
 }
 
-export default function HomeClient({ products, allProducts }: HomeClientProps) {
+export default function HomeClient({ products, allProducts, upcomingProducts }: HomeClientProps) {
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
 
@@ -379,6 +431,8 @@ export default function HomeClient({ products, allProducts }: HomeClientProps) {
         subtitle="Curated Selection"
         onQuickView={handleQuickView}
       />
+
+      <UpcomingTeaser products={upcomingProducts} />
 
       <LazyLoad>
         <ProductShowcase

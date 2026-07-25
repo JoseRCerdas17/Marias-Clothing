@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import Header from "@/components/Header";
+import ImageCarousel from "@/components/ImageCarousel";
 import ProductImage from "@/components/ProductImage";
 import { getProduct, getProducts } from "@/lib/api";
 import { formatPrice } from "@/lib/format";
@@ -48,30 +49,22 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       <section className="pt-[120px] pb-[80px] px-6">
         <div className="max-w-[1200px] mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-[47px] items-start">
-            <div className="space-y-[18px]">
-              {product.images.map((image, index) => (
-                <div
-                  key={index}
-                  className="relative aspect-[3/4] rounded-[17.6px] overflow-hidden bg-ash-veil/10 border border-white/10"
-                >
-                  <ProductImage
-                    src={image}
-                    alt={`${product.name} - Image ${index + 1}`}
-                    className="object-cover"
-                  />
-                  {product.is_sold && index === 0 && (
-                    <span className="absolute top-4 left-4 rounded-full bg-black/80 px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.15em] text-white backdrop-blur-sm">
-                      Sold
-                    </span>
-                  )}
-                  {product.availability_note && index === 0 && (
-                    <span className="absolute top-4 right-4 rounded-full bg-white/85 px-4 py-2 text-[11px] font-medium tracking-[-0.02em] text-black backdrop-blur-sm">
-                      {product.availability_note}
-                    </span>
-                  )}
-                </div>
-              ))}
-            </div>
+            <ImageCarousel
+              images={product.images}
+              alt={product.name}
+              className="aspect-[3/4] rounded-[17.6px] border border-white/10 bg-ash-veil/10"
+            >
+              {product.is_sold && (
+                <span className="absolute left-4 top-4 rounded-full bg-black/80 px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.15em] text-white backdrop-blur-sm">
+                  Sold
+                </span>
+              )}
+              {product.availability_note && (
+                <span className="absolute right-4 top-4 rounded-full bg-white/85 px-4 py-2 text-[11px] font-medium tracking-[-0.02em] text-black backdrop-blur-sm">
+                  {product.availability_note}
+                </span>
+              )}
+            </ImageCarousel>
 
             <div className="lg:sticky lg:top-[120px] space-y-[26px]">
               {product.category_name && (

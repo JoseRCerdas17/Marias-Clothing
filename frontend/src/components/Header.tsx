@@ -9,6 +9,7 @@ const navGroups = [
     label: "Shop",
     links: [
       { name: "All Products", href: "/products" },
+      { name: "Próximamente", href: "/proximamente" },
     ],
   },
 ];

@@ -25,12 +25,38 @@ export interface Product {
   created_at: string;
 }
 
+export interface UpcomingProduct {
+  id: number;
+  name: string;
+  description: string | null;
+  images: string[];
+  category_id: number | null;
+  category_name: string | null;
+  price: number | null;
+  expected_arrival_date: string | null;
+  is_published: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 function normalizeProduct(product: Product): Product {
   return {
     ...product,
     images: product.images.map((image) =>
       image.startsWith("/product-images/") ? `${API_BASE_URL}${image}` : image,
     ),
+  };
+}
+
+export function normalizeImageUrl(image: string | null): string | null {
+  if (!image) return null;
+  return image.startsWith("/product-images/") ? `${API_BASE_URL}${image}` : image;
+}
+
+function normalizeUpcomingProduct(product: UpcomingProduct): UpcomingProduct {
+  return {
+    ...product,
+    images: product.images.map((image) => normalizeImageUrl(image)).filter((image): image is string => Boolean(image)),
   };
 }
 
@@ -63,4 +89,11 @@ export async function getProduct(slug: string): Promise<Product | null> {
   }
   const product: Product = await res.json();
   return normalizeProduct(product);
+}
+
+export async function getUpcomingProducts(): Promise<UpcomingProduct[]> {
+  const res = await fetch(`${API_BASE_URL}/api/upcoming-products`, { cache: "no-store" });
+  if (!res.ok) throw new Error("Failed to fetch upcoming products");
+  const products: UpcomingProduct[] = await res.json();
+  return products.map(normalizeUpcomingProduct);
 }

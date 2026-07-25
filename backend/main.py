@@ -1,13 +1,13 @@
 import os
-from fastapi import Depends, FastAPI, Header, HTTPException, Query
+from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 from pydantic import BaseModel, ConfigDict
 from typing import Optional, List
-from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, DateTime, JSON, text
+from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, Date, DateTime, JSON, nullslast, text
 from sqlalchemy.orm import declarative_base, sessionmaker
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 from urllib.parse import parse_qs, quote, urlparse
 import re
@@ -54,6 +54,22 @@ class ProductDB(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
 
+class UpcomingProductDB(Base):
+    __tablename__ = "upcoming_products"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(200), nullable=False)
+    description = Column(String(2000))
+    image_url = Column(String(1000))
+    images = Column(JSON, default=list)
+    category_id = Column(Integer)
+    price = Column(Float, nullable=True)
+    expected_arrival_date = Column(Date, nullable=True)
+    is_published = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 Base.metadata.create_all(bind=engine)
 
 
@@ -66,9 +82,14 @@ def ensure_schema():
                 connection.execute(text("ALTER TABLE products ADD COLUMN is_sold BOOLEAN DEFAULT 0"))
             if "availability_note" not in column_names:
                 connection.execute(text("ALTER TABLE products ADD COLUMN availability_note VARCHAR(200)"))
+            upcoming_columns = connection.execute(text("PRAGMA table_info(upcoming_products)")).fetchall()
+            upcoming_column_names = {column[1] for column in upcoming_columns}
+            if upcoming_columns and "images" not in upcoming_column_names:
+                connection.execute(text("ALTER TABLE upcoming_products ADD COLUMN images JSON DEFAULT '[]'"))
         else:
             connection.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS is_sold BOOLEAN DEFAULT FALSE"))
             connection.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS availability_note VARCHAR(200)"))
+            connection.execute(text("ALTER TABLE upcoming_products ADD COLUMN IF NOT EXISTS images JSON DEFAULT '[]'"))
 
 
 ensure_schema()
@@ -130,12 +151,52 @@ class ProductAdminUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 
+class UpcomingProductCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    images: List[str] = []
+    category_id: Optional[int] = None
+    price: Optional[float] = None
+    expected_arrival_date: Optional[date] = None
+    is_published: bool = True
+
+
+class UpcomingProductUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    images: Optional[List[str]] = None
+    category_id: Optional[int] = None
+    price: Optional[float] = None
+    expected_arrival_date: Optional[date] = None
+    is_published: Optional[bool] = None
+
+
+class UpcomingProductResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    description: Optional[str] = None
+    images: List[str] = []
+    category_id: Optional[int] = None
+    category_name: Optional[str] = None
+    price: Optional[float] = None
+    expected_arrival_date: Optional[date] = None
+    is_published: bool = True
+    created_at: datetime
+    updated_at: datetime
+
+
+class ImageUploadResponse(BaseModel):
+    image_url: str
+
+
 app = FastAPI(title="Maria's Clothing API", version="1.0.0")
 
 PRODUCT_IMAGES_DIR = Path(__file__).resolve().parent.parent / "ropa"
+PRODUCT_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
 
-if PRODUCT_IMAGES_DIR.exists():
-    app.mount("/product-images", StaticFiles(directory=PRODUCT_IMAGES_DIR), name="product-images")
+app.mount("/product-images", StaticFiles(directory=PRODUCT_IMAGES_DIR), name="product-images")
 
 app.add_middleware(
     CORSMiddleware,
@@ -183,6 +244,14 @@ def slugify(value: str) -> str:
     return slug or "product"
 
 
+def safe_upload_filename(filename: str) -> str:
+    stem = slugify(Path(filename).stem)
+    suffix = Path(filename).suffix.lower()
+    if suffix not in {".jpg", ".jpeg", ".png", ".webp", ".gif"}:
+        raise HTTPException(status_code=400, detail="Only JPG, PNG, WEBP, or GIF images are allowed")
+    return f"{stem}-{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}{suffix}"
+
+
 def unique_slug(db, name: str) -> str:
     base_slug = slugify(name)
     slug = base_slug
@@ -193,6 +262,15 @@ def unique_slug(db, name: str) -> str:
         suffix += 1
 
     return slug
+
+
+def validate_upcoming_payload(payload: UpcomingProductCreate | UpcomingProductUpdate):
+    if payload.name is not None and not payload.name.strip():
+        raise HTTPException(status_code=400, detail="Upcoming product name is required")
+    if payload.price is not None and payload.price <= 0:
+        raise HTTPException(status_code=400, detail="Price must be a positive number")
+    if payload.images is not None and any(not image.strip() for image in payload.images):
+        raise HTTPException(status_code=400, detail="Image URLs cannot be empty")
 
 
 def validate_product_payload(payload: ProductAdminCreate | ProductAdminUpdate):
@@ -226,6 +304,26 @@ def serialize_product(db, product: ProductDB) -> Product:
         is_sold=product.is_sold,
         is_active=product.is_active,
         created_at=product.created_at,
+    )
+
+
+def serialize_upcoming_product(db, product: UpcomingProductDB) -> UpcomingProductResponse:
+    cat = db.query(CategoryDB).filter(CategoryDB.id == product.category_id).first()
+    images = clean_image_list(product.images or [])
+    if not images and product.image_url:
+        images = clean_image_list([product.image_url])
+    return UpcomingProductResponse(
+        id=product.id,
+        name=product.name,
+        description=product.description,
+        images=images,
+        category_id=product.category_id,
+        category_name=cat.name if cat else None,
+        price=product.price,
+        expected_arrival_date=product.expected_arrival_date,
+        is_published=product.is_published,
+        created_at=product.created_at,
+        updated_at=product.updated_at,
     )
 
 
@@ -430,6 +528,32 @@ def admin_get_products():
     return result
 
 
+@app.get("/admin/upcoming-products", response_model=List[UpcomingProductResponse], dependencies=[Depends(require_admin)])
+def admin_get_upcoming_products():
+    db = SessionLocal()
+    products = db.query(UpcomingProductDB).order_by(nullslast(UpcomingProductDB.expected_arrival_date.asc())).all()
+    result = [serialize_upcoming_product(db, product) for product in products]
+    db.close()
+    return result
+
+
+@app.post("/admin/upload-image", response_model=ImageUploadResponse, dependencies=[Depends(require_admin)])
+async def admin_upload_image(file: UploadFile = File(...)):
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Uploaded file must be an image")
+
+    filename = safe_upload_filename(file.filename or "product-image.jpg")
+    destination = PRODUCT_IMAGES_DIR / filename
+    contents = await file.read()
+    max_size = 8 * 1024 * 1024
+
+    if len(contents) > max_size:
+        raise HTTPException(status_code=400, detail="Image must be smaller than 8 MB")
+
+    destination.write_bytes(contents)
+    return ImageUploadResponse(image_url=product_image(filename))
+
+
 @app.post("/admin/products", response_model=Product, dependencies=[Depends(require_admin)])
 def admin_create_product(payload: ProductAdminCreate):
     validate_product_payload(payload)
@@ -497,6 +621,101 @@ def admin_delete_product(product_id: int):
     db.commit()
     db.refresh(product)
     result = serialize_product(db, product)
+    db.close()
+    return result
+
+
+@app.get("/api/upcoming-products", response_model=List[UpcomingProductResponse])
+def get_upcoming_products():
+    db = SessionLocal()
+    products = (
+        db.query(UpcomingProductDB)
+        .filter(UpcomingProductDB.is_published == True)
+        .order_by(nullslast(UpcomingProductDB.expected_arrival_date.asc()))
+        .all()
+    )
+    result = [serialize_upcoming_product(db, product) for product in products]
+    db.close()
+    return result
+
+
+@app.get("/api/upcoming-products/{product_id}", response_model=UpcomingProductResponse)
+def get_upcoming_product(product_id: int):
+    db = SessionLocal()
+    product = (
+        db.query(UpcomingProductDB)
+        .filter(UpcomingProductDB.id == product_id, UpcomingProductDB.is_published == True)
+        .first()
+    )
+    if not product:
+        db.close()
+        raise HTTPException(status_code=404, detail="Upcoming product not found")
+
+    result = serialize_upcoming_product(db, product)
+    db.close()
+    return result
+
+
+@app.post("/api/upcoming-products", response_model=UpcomingProductResponse, dependencies=[Depends(require_admin)])
+def create_upcoming_product(payload: UpcomingProductCreate):
+    validate_upcoming_payload(payload)
+    db = SessionLocal()
+    product = UpcomingProductDB(
+        name=payload.name.strip(),
+        description=payload.description.strip() if payload.description else None,
+        images=clean_image_list(payload.images),
+        category_id=payload.category_id,
+        price=payload.price,
+        expected_arrival_date=payload.expected_arrival_date,
+        is_published=payload.is_published,
+    )
+    db.add(product)
+    db.commit()
+    db.refresh(product)
+    result = serialize_upcoming_product(db, product)
+    db.close()
+    return result
+
+
+@app.put("/api/upcoming-products/{product_id}", response_model=UpcomingProductResponse, dependencies=[Depends(require_admin)])
+def update_upcoming_product(product_id: int, payload: UpcomingProductUpdate):
+    validate_upcoming_payload(payload)
+    db = SessionLocal()
+    product = db.query(UpcomingProductDB).filter(UpcomingProductDB.id == product_id).first()
+    if not product:
+        db.close()
+        raise HTTPException(status_code=404, detail="Upcoming product not found")
+
+    updates = payload.model_dump(exclude_unset=True)
+    if "name" in updates and updates["name"] is not None:
+        updates["name"] = updates["name"].strip()
+    if "description" in updates and updates["description"]:
+        updates["description"] = updates["description"].strip()
+    if "images" in updates and updates["images"] is not None:
+        updates["images"] = clean_image_list(updates["images"])
+
+    updates["updated_at"] = datetime.utcnow()
+    for field, value in updates.items():
+        setattr(product, field, value)
+
+    db.commit()
+    db.refresh(product)
+    result = serialize_upcoming_product(db, product)
+    db.close()
+    return result
+
+
+@app.delete("/api/upcoming-products/{product_id}", response_model=UpcomingProductResponse, dependencies=[Depends(require_admin)])
+def delete_upcoming_product(product_id: int):
+    db = SessionLocal()
+    product = db.query(UpcomingProductDB).filter(UpcomingProductDB.id == product_id).first()
+    if not product:
+        db.close()
+        raise HTTPException(status_code=404, detail="Upcoming product not found")
+
+    result = serialize_upcoming_product(db, product)
+    db.delete(product)
+    db.commit()
     db.close()
     return result
 

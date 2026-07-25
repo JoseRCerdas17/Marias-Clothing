@@ -1,9 +1,9 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from "react";
+import { ChangeEvent, FormEvent, useEffect, useState } from "react";
 import ProductImage from "@/components/ProductImage";
-import { Category, Product } from "@/lib/api";
-import { formatPrice } from "@/lib/format";
+import { Category, Product, UpcomingProduct } from "@/lib/api";
+import { formatAdminDate, formatPrice } from "@/lib/format";
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000").replace(/\/$/, "");
 
@@ -34,6 +34,16 @@ interface ProductFormState {
   is_active: boolean;
 }
 
+interface UpcomingFormState {
+  name: string;
+  description: string;
+  images: string;
+  category_id: string;
+  price: string;
+  expected_arrival_date: string;
+  is_published: boolean;
+}
+
 const emptyForm: ProductFormState = {
   name: "",
   description: "",
@@ -46,6 +56,16 @@ const emptyForm: ProductFormState = {
   is_featured: false,
   is_sold: false,
   is_active: true,
+};
+
+const emptyUpcomingForm: UpcomingFormState = {
+  name: "",
+  description: "",
+  images: "",
+  category_id: "",
+  price: "",
+  expected_arrival_date: "",
+  is_published: true,
 };
 
 function parseList(value: string) {
@@ -68,16 +88,22 @@ export default function AdminPage() {
   const [token, setToken] = useState("");
   const [tokenInput, setTokenInput] = useState("");
   const [products, setProducts] = useState<Product[]>([]);
+  const [upcomingProducts, setUpcomingProducts] = useState<UpcomingProduct[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [form, setForm] = useState<ProductFormState>(emptyForm);
+  const [upcomingForm, setUpcomingForm] = useState<UpcomingFormState>(emptyUpcomingForm);
+  const [editingUpcomingId, setEditingUpcomingId] = useState<number | null>(null);
   const [priceDrafts, setPriceDrafts] = useState<Record<number, string>>({});
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
   const [loading, setLoading] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState<"product" | "upcoming" | `product-${number}` | `upcoming-${number}` | null>(null);
+  const [activeTab, setActiveTab] = useState<"products" | "upcoming">("products");
   const [showWelcome, setShowWelcome] = useState(true);
   const [welcomeMessage, setWelcomeMessage] = useState(welcomeMessages[0]);
 
   const activeProducts = products.filter((product) => product.is_active).length;
   const soldProducts = products.filter((product) => product.is_sold && product.is_active).length;
+  const publishedUpcomingProducts = upcomingProducts.filter((product) => product.is_published).length;
 
   useEffect(() => {
     const showRandomWelcome = () => {
@@ -137,6 +163,119 @@ export default function AdminPage() {
     return res.json();
   }
 
+  async function uploadImage(file: File) {
+    const data = new FormData();
+    data.append("file", file);
+
+    const res = await fetch(`${API_URL}/admin/upload-image`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: data,
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => null);
+      throw new Error(errorData?.detail || "Unable to upload image");
+    }
+
+    return res.json() as Promise<{ image_url: string }>;
+  }
+
+  async function handleProductImageUpload(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files || []);
+    event.target.value = "";
+    if (files.length === 0) return;
+
+    setUploadingImage("product");
+    setFeedback(null);
+
+    try {
+      const uploadedImages = await Promise.all(files.map(uploadImage));
+      const imageUrls = uploadedImages.map((uploaded) => uploaded.image_url);
+      setForm((currentForm) => ({
+        ...currentForm,
+        images: currentForm.images ? `${currentForm.images.trim()}\n${imageUrls.join("\n")}` : imageUrls.join("\n"),
+      }));
+      setFeedback({ type: "success", message: files.length === 1 ? "Image uploaded and added to product" : `${files.length} images uploaded and added to product` });
+    } catch (error) {
+      setFeedback({ type: "error", message: error instanceof Error ? error.message : "Unable to upload image" });
+    } finally {
+      setUploadingImage(null);
+    }
+  }
+
+  async function handleUpcomingImageUpload(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files || []);
+    event.target.value = "";
+    if (files.length === 0) return;
+
+    setUploadingImage("upcoming");
+    setFeedback(null);
+
+    try {
+      const uploadedImages = await Promise.all(files.map(uploadImage));
+      const imageUrls = uploadedImages.map((uploaded) => uploaded.image_url);
+      setUpcomingForm((currentForm) => ({
+        ...currentForm,
+        images: currentForm.images ? `${currentForm.images.trim()}\n${imageUrls.join("\n")}` : imageUrls.join("\n"),
+      }));
+      setFeedback({ type: "success", message: files.length === 1 ? "Image uploaded and added to upcoming item" : `${files.length} images uploaded and added to upcoming item` });
+    } catch (error) {
+      setFeedback({ type: "error", message: error instanceof Error ? error.message : "Unable to upload image" });
+    } finally {
+      setUploadingImage(null);
+    }
+  }
+
+  async function handleExistingProductImageUpload(product: Product, event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files || []);
+    event.target.value = "";
+    if (files.length === 0) return;
+
+    setUploadingImage(`product-${product.id}`);
+    setFeedback(null);
+
+    try {
+      const uploadedImages = await Promise.all(files.map(uploadImage));
+      const imageUrls = uploadedImages.map((uploaded) => uploaded.image_url);
+      await updateProduct(
+        product.id,
+        { images: [...product.images, ...imageUrls] },
+        files.length === 1 ? "Image added to product" : `${files.length} images added to product`,
+      );
+    } catch (error) {
+      setFeedback({ type: "error", message: error instanceof Error ? error.message : "Unable to upload image" });
+    } finally {
+      setUploadingImage(null);
+    }
+  }
+
+  async function handleExistingUpcomingImageUpload(product: UpcomingProduct, event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files || []);
+    event.target.value = "";
+    if (files.length === 0) return;
+
+    setUploadingImage(`upcoming-${product.id}`);
+    setFeedback(null);
+
+    try {
+      const uploadedImages = await Promise.all(files.map(uploadImage));
+      const imageUrls = uploadedImages.map((uploaded) => uploaded.image_url);
+      await adminRequest<UpcomingProduct>(`/api/upcoming-products/${product.id}`, {
+        method: "PUT",
+        body: JSON.stringify({ images: [...product.images, ...imageUrls] }),
+      });
+      setFeedback({ type: "success", message: files.length === 1 ? "Image added to upcoming item" : `${files.length} images added to upcoming item` });
+      await loadUpcomingProducts();
+    } catch (error) {
+      setFeedback({ type: "error", message: error instanceof Error ? error.message : "Unable to upload image" });
+    } finally {
+      setUploadingImage(null);
+    }
+  }
+
   async function loadProducts(authToken = token) {
     setLoading(true);
     setFeedback(null);
@@ -147,6 +286,39 @@ export default function AdminPage() {
       setPriceDrafts(Object.fromEntries(data.map((product) => [product.id, String(product.price)])));
     } catch (error) {
       setFeedback({ type: "error", message: error instanceof Error ? error.message : "Unable to load products" });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadUpcomingProducts(authToken = token) {
+    setLoading(true);
+    setFeedback(null);
+
+    try {
+      const data = await adminRequest<UpcomingProduct[]>("/admin/upcoming-products", {}, authToken);
+      setUpcomingProducts(data);
+    } catch (error) {
+      setFeedback({ type: "error", message: error instanceof Error ? error.message : "Unable to load upcoming products" });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadAdminData(authToken = token) {
+    setLoading(true);
+    setFeedback(null);
+
+    try {
+      const [productsData, upcomingData] = await Promise.all([
+        adminRequest<Product[]>("/admin/products", {}, authToken),
+        adminRequest<UpcomingProduct[]>("/admin/upcoming-products", {}, authToken),
+      ]);
+      setProducts(productsData);
+      setPriceDrafts(Object.fromEntries(productsData.map((product) => [product.id, String(product.price)])));
+      setUpcomingProducts(upcomingData);
+    } catch (error) {
+      setFeedback({ type: "error", message: error instanceof Error ? error.message : "Unable to load admin data" });
     } finally {
       setLoading(false);
     }
@@ -163,7 +335,7 @@ export default function AdminPage() {
 
     window.localStorage.setItem("marias-admin-token", nextToken);
     setToken(nextToken);
-    void loadProducts(nextToken);
+    void loadAdminData(nextToken);
   }
 
   function handleLogout() {
@@ -171,6 +343,9 @@ export default function AdminPage() {
     setToken("");
     setTokenInput("");
     setProducts([]);
+    setUpcomingProducts([]);
+    setUpcomingForm(emptyUpcomingForm);
+    setEditingUpcomingId(null);
   }
 
   async function handleAddProduct(event: FormEvent<HTMLFormElement>) {
@@ -250,6 +425,97 @@ export default function AdminPage() {
     }
   }
 
+  function editUpcomingProduct(product: UpcomingProduct) {
+    setEditingUpcomingId(product.id);
+    setUpcomingForm({
+      name: product.name,
+      description: product.description || "",
+      images: product.images.join("\n"),
+      category_id: product.category_id ? String(product.category_id) : "",
+      price: product.price ? String(product.price) : "",
+      expected_arrival_date: product.expected_arrival_date || "",
+      is_published: product.is_published,
+    });
+  }
+
+  function cancelUpcomingEdit() {
+    setEditingUpcomingId(null);
+    setUpcomingForm(emptyUpcomingForm);
+  }
+
+  async function handleSaveUpcomingProduct(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const price = upcomingForm.price.trim() ? Number(upcomingForm.price) : null;
+
+    if (!upcomingForm.name.trim()) {
+      setFeedback({ type: "error", message: "Upcoming product name is required" });
+      return;
+    }
+
+    if (price !== null && (!Number.isFinite(price) || price <= 0)) {
+      setFeedback({ type: "error", message: "Price must be a positive number" });
+      return;
+    }
+
+    const payload = {
+      name: upcomingForm.name.trim(),
+      description: upcomingForm.description.trim() || null,
+      images: parseList(upcomingForm.images),
+      category_id: upcomingForm.category_id ? Number(upcomingForm.category_id) : null,
+      price,
+      expected_arrival_date: upcomingForm.expected_arrival_date || null,
+      is_published: upcomingForm.is_published,
+    };
+
+    try {
+      if (editingUpcomingId) {
+        await adminRequest<UpcomingProduct>(`/api/upcoming-products/${editingUpcomingId}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
+        setFeedback({ type: "success", message: "Upcoming product updated successfully" });
+      } else {
+        await adminRequest<UpcomingProduct>("/api/upcoming-products", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        setFeedback({ type: "success", message: "Upcoming product added successfully" });
+      }
+
+      cancelUpcomingEdit();
+      await loadUpcomingProducts();
+    } catch (error) {
+      setFeedback({ type: "error", message: error instanceof Error ? error.message : "Unable to save upcoming product" });
+    }
+  }
+
+  async function toggleUpcomingPublished(product: UpcomingProduct) {
+    try {
+      await adminRequest<UpcomingProduct>(`/api/upcoming-products/${product.id}`, {
+        method: "PUT",
+        body: JSON.stringify({ is_published: !product.is_published }),
+      });
+      setFeedback({ type: "success", message: product.is_published ? "Upcoming product hidden" : "Upcoming product published" });
+      await loadUpcomingProducts();
+    } catch (error) {
+      setFeedback({ type: "error", message: error instanceof Error ? error.message : "Unable to update upcoming product" });
+    }
+  }
+
+  async function deleteUpcomingProduct(product: UpcomingProduct) {
+    const confirmed = window.confirm(`Delete "${product.name}" from upcoming arrivals?`);
+    if (!confirmed) return;
+
+    try {
+      await adminRequest<UpcomingProduct>(`/api/upcoming-products/${product.id}`, { method: "DELETE" });
+      setFeedback({ type: "success", message: "Upcoming product deleted" });
+      if (editingUpcomingId === product.id) cancelUpcomingEdit();
+      await loadUpcomingProducts();
+    } catch (error) {
+      setFeedback({ type: "error", message: error instanceof Error ? error.message : "Unable to delete upcoming product" });
+    }
+  }
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-carbon-canvas px-5 py-8 text-bone-white md:px-8 md:py-12">
       <div className="pointer-events-none absolute inset-0 gradient-mesh opacity-80" />
@@ -306,7 +572,7 @@ export default function AdminPage() {
           </div>
 
           {token && (
-            <div className="mt-8 grid gap-3 md:grid-cols-3">
+            <div className="mt-8 grid gap-3 md:grid-cols-4">
               <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5">
                 <p className="text-[11px] uppercase tracking-[0.18em] text-iron-gray">Total</p>
                 <p className="mt-2 text-[28px] tracking-[-0.78px] text-white">{products.length}</p>
@@ -318,6 +584,10 @@ export default function AdminPage() {
               <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5">
                 <p className="text-[11px] uppercase tracking-[0.18em] text-iron-gray">Sold</p>
                 <p className="mt-2 text-[28px] tracking-[-0.78px] text-gold-accent">{soldProducts}</p>
+              </div>
+              <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-5">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-iron-gray">Upcoming</p>
+                <p className="mt-2 text-[28px] tracking-[-0.78px] text-gold-accent">{publishedUpcomingProducts}</p>
               </div>
             </div>
           )}
@@ -348,6 +618,24 @@ export default function AdminPage() {
               </div>
             )}
 
+            <div className="flex flex-wrap gap-3">
+              <button
+                className={`rounded-full px-5 py-3 text-[13px] transition-all duration-300 ${activeTab === "products" ? "bg-white text-black" : "border border-white/15 text-smoke hover:border-gold-accent/50 hover:text-gold-accent"}`}
+                onClick={() => setActiveTab("products")}
+              >
+                Products
+              </button>
+              <button
+                className={`rounded-full px-5 py-3 text-[13px] transition-all duration-300 ${activeTab === "upcoming" ? "bg-white text-black" : "border border-white/15 text-smoke hover:border-gold-accent/50 hover:text-gold-accent"}`}
+                onClick={() => setActiveTab("upcoming")}
+              >
+                Próximos ingresos
+              </button>
+            </div>
+
+            {activeTab === "products" ? (
+              <>
+
             <section className="glass rounded-[30px] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.2)] md:p-8">
               <div className="flex flex-col gap-2">
                 <p className="text-[11px] uppercase tracking-[0.2em] text-gold-accent">Create</p>
@@ -364,7 +652,13 @@ export default function AdminPage() {
                 </select>
                 <input className="admin-input" value={form.availability_note} onChange={(event) => setForm({ ...form, availability_note: event.target.value })} placeholder="Availability note" />
                 <textarea className="admin-input min-h-[110px] md:col-span-2" value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} placeholder="Description" />
-                <textarea className="admin-input min-h-[90px]" value={form.images} onChange={(event) => setForm({ ...form, images: event.target.value })} placeholder="Image URLs or /product-images/file.jpeg, one per line" />
+                <div className="space-y-3">
+                  <textarea className="admin-input min-h-[90px] w-full" value={form.images} onChange={(event) => setForm({ ...form, images: event.target.value })} placeholder="Image URLs or /product-images/file.jpeg, one per line" />
+                  <label className="flex cursor-pointer items-center justify-center rounded-full border border-white/15 px-5 py-3 text-[13px] text-smoke transition-all duration-300 hover:border-gold-accent/50 hover:text-gold-accent">
+                    {uploadingImage === "product" ? "Uploading images..." : "Upload one or more images from phone or PC"}
+                    <input className="sr-only" type="file" accept="image/*" multiple onChange={handleProductImageUpload} disabled={uploadingImage !== null} />
+                  </label>
+                </div>
                 <textarea className="admin-input min-h-[90px]" value={form.sizes} onChange={(event) => setForm({ ...form, sizes: event.target.value })} placeholder="Sizes, comma or line separated" />
                 <textarea className="admin-input min-h-[90px]" value={form.colors} onChange={(event) => setForm({ ...form, colors: event.target.value })} placeholder="Colors, comma or line separated" />
 
@@ -417,6 +711,7 @@ export default function AdminPage() {
                         {!product.is_active && <span className="rounded-full bg-white/10 px-2.5 py-1 text-[10px] uppercase tracking-[0.15em] text-smoke">Removed</span>}
                       </div>
                       <p className="text-[14px] text-smoke">{product.category_name || "No category"} · {formatPrice(product.price)}</p>
+                      <p className="text-[13px] text-iron-gray">{product.images.length} image{product.images.length === 1 ? "" : "s"}</p>
                       {product.availability_note && <p className="text-[13px] text-gold-accent">{product.availability_note}</p>}
                     </div>
                     <div className="flex flex-col gap-2 md:min-w-[230px]">
@@ -435,6 +730,10 @@ export default function AdminPage() {
                       <button className="rounded-full border border-white/15 px-4 py-2 text-[13px] text-smoke transition-all duration-300 hover:border-gold-accent/50 hover:text-gold-accent" onClick={() => updateProduct(product.id, { is_sold: !product.is_sold }, product.is_sold ? "Product marked available" : "Product marked sold") }>
                         {product.is_sold ? "Mark available" : "Mark sold"}
                       </button>
+                      <label className="flex cursor-pointer items-center justify-center rounded-full border border-white/15 px-4 py-2 text-[13px] text-smoke transition-all duration-300 hover:border-gold-accent/50 hover:text-gold-accent">
+                        {uploadingImage === `product-${product.id}` ? "Uploading..." : "Add images"}
+                        <input className="sr-only" type="file" accept="image/*" multiple onChange={(event) => handleExistingProductImageUpload(product, event)} disabled={uploadingImage !== null} />
+                      </label>
                       <button className="rounded-full border border-red-400/30 px-4 py-2 text-[13px] text-red-300 transition-all duration-300 hover:border-red-300/70 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-40" onClick={() => handleDelete(product)} disabled={!product.is_active}>
                         Delete
                       </button>
@@ -443,6 +742,117 @@ export default function AdminPage() {
                 ))}
               </div>
             </section>
+              </>
+            ) : (
+              <>
+                <section className="glass rounded-[30px] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.2)] md:p-8">
+                  <div className="flex flex-col gap-2">
+                    <p className="text-[11px] uppercase tracking-[0.2em] text-gold-accent">Coming soon</p>
+                    <h2 className="text-[34px] tracking-[-1.16px]" style={{ fontFamily: "var(--font-cormorant)" }}>
+                      {editingUpcomingId ? "Edit upcoming item" : "Add upcoming item"}
+                    </h2>
+                  </div>
+                  <form className="mt-7 grid gap-4 md:grid-cols-2" onSubmit={handleSaveUpcomingProduct}>
+                    <input className="admin-input" value={upcomingForm.name} onChange={(event) => setUpcomingForm({ ...upcomingForm, name: event.target.value })} placeholder="Name *" />
+                    <input className="admin-input" value={upcomingForm.price} onChange={(event) => setUpcomingForm({ ...upcomingForm, price: event.target.value })} placeholder="Price optional" type="number" min="1" step="1" />
+                    <select className="admin-input" value={upcomingForm.category_id} onChange={(event) => setUpcomingForm({ ...upcomingForm, category_id: event.target.value })}>
+                      <option value="">No category</option>
+                      {categories.map((category) => (
+                        <option key={category.id} value={category.id}>{category.name}</option>
+                      ))}
+                    </select>
+                    <input className="admin-input" value={upcomingForm.expected_arrival_date} onChange={(event) => setUpcomingForm({ ...upcomingForm, expected_arrival_date: event.target.value })} type="date" aria-label="Expected arrival date optional" />
+                    <textarea className="admin-input min-h-[110px] md:col-span-2" value={upcomingForm.description} onChange={(event) => setUpcomingForm({ ...upcomingForm, description: event.target.value })} placeholder="Description" />
+                    <div className="space-y-3 md:col-span-2">
+                      <textarea className="admin-input min-h-[90px] w-full" value={upcomingForm.images} onChange={(event) => setUpcomingForm({ ...upcomingForm, images: event.target.value })} placeholder="Image URLs or /product-images/file.jpeg, one per line" />
+                      <label className="flex cursor-pointer items-center justify-center rounded-full border border-white/15 px-5 py-3 text-[13px] text-smoke transition-all duration-300 hover:border-gold-accent/50 hover:text-gold-accent">
+                        {uploadingImage === "upcoming" ? "Uploading images..." : "Upload one or more images from phone or PC"}
+                        <input className="sr-only" type="file" accept="image/*" multiple onChange={handleUpcomingImageUpload} disabled={uploadingImage !== null} />
+                      </label>
+                    </div>
+
+                    <label className="flex items-center gap-2 text-[14px] text-smoke md:col-span-2">
+                      <input
+                        type="checkbox"
+                        checked={upcomingForm.is_published}
+                        onChange={(event) => setUpcomingForm({ ...upcomingForm, is_published: event.target.checked })}
+                      />
+                      Published
+                    </label>
+
+                    <div className="flex flex-wrap gap-3 md:col-span-2">
+                      <button className="w-fit rounded-full bg-white px-7 py-3.5 text-[14px] font-medium text-black transition-all duration-300 hover:bg-gold-accent hover:text-white hover:shadow-[0_12px_40px_rgba(201,169,98,0.2)] active:scale-[0.98]">
+                        {editingUpcomingId ? "Save changes" : "Add upcoming item"}
+                      </button>
+                      {editingUpcomingId && (
+                        <button type="button" className="rounded-full border border-white/15 px-7 py-3.5 text-[14px] text-smoke transition-all duration-300 hover:border-gold-accent/50 hover:text-gold-accent" onClick={cancelUpcomingEdit}>
+                          Cancel edit
+                        </button>
+                      )}
+                    </div>
+                  </form>
+                </section>
+
+                <section className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.2em] text-gold-accent">Upcoming arrivals</p>
+                      <h2 className="mt-1 text-[34px] tracking-[-1.16px]" style={{ fontFamily: "var(--font-cormorant)" }}>Próximos ingresos</h2>
+                    </div>
+                    <button className="rounded-full border border-white/15 px-5 py-3 text-[13px] text-smoke transition-all duration-300 hover:border-gold-accent/50 hover:text-gold-accent disabled:opacity-50" onClick={() => loadUpcomingProducts()} disabled={loading}>
+                      {loading ? "Loading..." : "Refresh"}
+                    </button>
+                  </div>
+
+                  <div className="grid gap-4">
+                    {upcomingProducts.length === 0 ? (
+                      <div className="glass rounded-[24px] p-8 text-center text-[14px] text-iron-gray">
+                        No upcoming products yet.
+                      </div>
+                    ) : (
+                      upcomingProducts.map((product) => (
+                        <article key={product.id} className={`glass group grid gap-5 rounded-[24px] p-4 transition-all duration-300 hover:border-white/18 hover:bg-white/[0.045] hover:shadow-[0_24px_80px_rgba(0,0,0,0.24)] md:grid-cols-[112px_1fr_auto] ${!product.is_published ? "opacity-55" : ""}`}>
+                          <div className="relative h-[138px] overflow-hidden rounded-[16px] bg-white/5 md:h-[132px]">
+                            {product.images[0] ? (
+                              <ProductImage
+                                src={imageSrc(product.images[0])}
+                                alt={product.name}
+                                className="object-cover"
+                              />
+                            ) : null}
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h3 className="text-[20px] tracking-[-0.02em] text-white" style={{ fontFamily: "var(--font-cormorant)" }}>{product.name}</h3>
+                              <span className="rounded-full bg-gold-accent/15 px-2.5 py-1 text-[10px] uppercase tracking-[0.15em] text-gold-accent">Próximamente</span>
+                              {!product.is_published && <span className="rounded-full bg-white/10 px-2.5 py-1 text-[10px] uppercase tracking-[0.15em] text-smoke">Hidden</span>}
+                            </div>
+                            <p className="text-[14px] text-smoke">{product.category_name || "No category"} · {formatAdminDate(product.expected_arrival_date)}</p>
+                            <p className="text-[13px] text-gold-accent">{product.price ? formatPrice(product.price) : "Price pending"}</p>
+                            <p className="text-[13px] text-iron-gray">{product.images.length} image{product.images.length === 1 ? "" : "s"}</p>
+                          </div>
+                          <div className="flex flex-col gap-2 md:min-w-[230px]">
+                            <button className="rounded-full bg-white px-4 py-2 text-[13px] text-black transition-all duration-300 hover:bg-gold-accent hover:text-white" onClick={() => editUpcomingProduct(product)}>
+                              Edit
+                            </button>
+                            <label className="flex cursor-pointer items-center justify-center rounded-full border border-white/15 px-4 py-2 text-[13px] text-smoke transition-all duration-300 hover:border-gold-accent/50 hover:text-gold-accent">
+                              {uploadingImage === `upcoming-${product.id}` ? "Uploading..." : "Add images"}
+                              <input className="sr-only" type="file" accept="image/*" multiple onChange={(event) => handleExistingUpcomingImageUpload(product, event)} disabled={uploadingImage !== null} />
+                            </label>
+                            <button className="rounded-full border border-white/15 px-4 py-2 text-[13px] text-smoke transition-all duration-300 hover:border-gold-accent/50 hover:text-gold-accent" onClick={() => toggleUpcomingPublished(product)}>
+                              {product.is_published ? "Hide" : "Publish"}
+                            </button>
+                            <button className="rounded-full border border-red-400/30 px-4 py-2 text-[13px] text-red-300 transition-all duration-300 hover:border-red-300/70 hover:text-red-200" onClick={() => deleteUpcomingProduct(product)}>
+                              Delete
+                            </button>
+                          </div>
+                        </article>
+                      ))
+                    )}
+                  </div>
+                </section>
+              </>
+            )}
           </>
         )}
       </div>

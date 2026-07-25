@@ -2,9 +2,9 @@
 
 import { useEffect, useCallback } from "react";
 import Link from "next/link";
+import ImageCarousel from "@/components/ImageCarousel";
 import { Product } from "@/lib/api";
 import { formatPrice } from "@/lib/format";
-import ProductImage from "@/components/ProductImage";
 
 interface QuickViewModalProps {
   product: Product | null;
@@ -68,18 +68,12 @@ export default function QuickViewModal({ product, isOpen, onClose }: QuickViewMo
         </button>
 
         <div className="grid md:grid-cols-2 gap-0">
-          <div className="relative aspect-[3/4] md:aspect-auto md:min-h-[400px] bg-white/5">
-            {product.images[0] ? (
-              <ProductImage
-                src={product.images[0]}
-                alt={product.name}
-                className="object-cover md:rounded-tl-[24px] md:rounded-bl-[24px]"
-              />
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center text-iron-gray">
-                No image
-              </div>
-            )}
+          <ImageCarousel
+            images={product.images}
+            alt={product.name}
+            className="aspect-[3/4] bg-white/5 md:aspect-auto md:min-h-[400px]"
+            imageClassName="object-cover md:rounded-tl-[24px] md:rounded-bl-[24px]"
+          >
             {product.is_sold && (
               <span className="absolute top-4 left-4 rounded-full bg-black/80 px-4 py-2 text-[12px] font-semibold uppercase tracking-[0.15em] text-white backdrop-blur-sm">
                 Sold
@@ -90,7 +84,7 @@ export default function QuickViewModal({ product, isOpen, onClose }: QuickViewMo
                 {product.availability_note}
               </span>
             )}
-          </div>
+          </ImageCarousel>
 
           <div className="p-6 md:p-10 flex flex-col">
             {product.category_name && (
