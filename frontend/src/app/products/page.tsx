@@ -27,6 +27,7 @@ function SectionTitle({ label, title }: { label: string; title: string }) {
 
 export default async function ProductsPage() {
   const products = await getProducts();
+  const sortedProducts = [...products].sort((a, b) => Number(a.is_sold) - Number(b.is_sold));
 
   return (
     <main className="bg-carbon-canvas min-h-screen">
@@ -47,7 +48,7 @@ export default async function ProductsPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-[18px]">
-              {products.map((product) => (
+              {sortedProducts.map((product) => (
                 <Link
                   key={product.id}
                   href={`/products/${product.slug}`}
