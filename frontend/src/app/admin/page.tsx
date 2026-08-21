@@ -397,8 +397,8 @@ export default function AdminPage() {
         method: "PATCH",
         body: JSON.stringify(payload),
       });
-      setFeedback({ type: "success", message });
       await loadProducts();
+      setFeedback({ type: "success", message });
     } catch (error) {
       setFeedback({ type: "error", message: error instanceof Error ? error.message : "Unable to update product" });
     }

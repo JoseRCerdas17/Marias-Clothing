@@ -1,4 +1,6 @@
 import os
+import cloudinary
+import cloudinary.uploader
 from fastapi import Depends, FastAPI, File, Header, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -13,6 +15,13 @@ from urllib.parse import parse_qs, quote, urlparse
 import re
 
 load_dotenv()
+
+cloudinary.config(
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
+    secure=True,
+)
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
@@ -542,16 +551,33 @@ async def admin_upload_image(file: UploadFile = File(...)):
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Uploaded file must be an image")
 
-    filename = safe_upload_filename(file.filename or "product-image.jpg")
-    destination = PRODUCT_IMAGES_DIR / filename
     contents = await file.read()
     max_size = 8 * 1024 * 1024
 
     if len(contents) > max_size:
         raise HTTPException(status_code=400, detail="Image must be smaller than 8 MB")
 
-    destination.write_bytes(contents)
-    return ImageUploadResponse(image_url=product_image(filename))
+    if not all(
+        [
+            os.getenv("CLOUDINARY_CLOUD_NAME"),
+            os.getenv("CLOUDINARY_API_KEY"),
+            os.getenv("CLOUDINARY_API_SECRET"),
+        ]
+    ):
+        raise HTTPException(status_code=503, detail="Cloudinary image storage is not configured")
+
+    try:
+        upload = cloudinary.uploader.upload(
+            contents,
+            folder="marias-clothing",
+            resource_type="image",
+            use_filename=True,
+            unique_filename=True,
+        )
+    except Exception as error:
+        raise HTTPException(status_code=502, detail="Unable to upload image to Cloudinary") from error
+
+    return ImageUploadResponse(image_url=upload["secure_url"])
 
 
 @app.post("/admin/products", response_model=Product, dependencies=[Depends(require_admin)])

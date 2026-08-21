@@ -7,3 +7,4 @@ pydantic-settings==2.5.2
 psycopg2-binary==2.9.10
 alembic==1.14.0
 python-multipart==0.0.20
+cloudinary==1.41.0
