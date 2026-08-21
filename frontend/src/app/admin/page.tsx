@@ -279,6 +279,33 @@ export default function AdminPage() {
     }
   }
 
+  async function removeProductImage(product: Product, imageIndex: number) {
+    const confirmed = window.confirm(`Remove image ${imageIndex + 1} from "${product.name}"?`);
+    if (!confirmed) return;
+
+    await updateProduct(
+      product.id,
+      { images: product.images.filter((_, index) => index !== imageIndex) },
+      "Image removed from product",
+    );
+  }
+
+  async function removeUpcomingImage(product: UpcomingProduct, imageIndex: number) {
+    const confirmed = window.confirm(`Remove image ${imageIndex + 1} from "${product.name}"?`);
+    if (!confirmed) return;
+
+    try {
+      await adminRequest<UpcomingProduct>(`/api/upcoming-products/${product.id}`, {
+        method: "PUT",
+        body: JSON.stringify({ images: product.images.filter((_, index) => index !== imageIndex) }),
+      });
+      await loadUpcomingProducts();
+      setFeedback({ type: "success", message: "Image removed from upcoming item" });
+    } catch (error) {
+      setFeedback({ type: "error", message: error instanceof Error ? error.message : "Unable to remove image" });
+    }
+  }
+
   async function loadProducts(authToken = token) {
     setLoading(true);
     setFeedback(null);
@@ -716,6 +743,18 @@ export default function AdminPage() {
                       <p className="text-[14px] text-smoke">{product.category_name || "No category"} · {formatPrice(product.price)}</p>
                       <p className="text-[13px] text-iron-gray">{product.images.length} image{product.images.length === 1 ? "" : "s"}</p>
                       {product.availability_note && <p className="text-[13px] text-gold-accent">{product.availability_note}</p>}
+                      {product.images.length > 0 && (
+                        <div className="flex flex-wrap gap-2 pt-1">
+                          {product.images.map((image, index) => (
+                            <div key={`${image}-${index}`} className="relative h-14 w-11 overflow-hidden rounded-[8px] bg-white/5">
+                              <ProductImage src={imageSrc(image)} alt={`${product.name} image ${index + 1}`} className="object-cover" />
+                              <button type="button" className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/80 text-[14px] text-white hover:bg-red-500" onClick={() => removeProductImage(product, index)} aria-label={`Remove image ${index + 1}`}>
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <div className="flex flex-col gap-2 md:min-w-[230px]">
                       <div className="flex gap-2">
@@ -833,6 +872,18 @@ export default function AdminPage() {
                             <p className="text-[14px] text-smoke">{product.category_name || "No category"} · {formatAdminDate(product.expected_arrival_date)}</p>
                             <p className="text-[13px] text-gold-accent">{product.price ? formatPrice(product.price) : "Price pending"}</p>
                             <p className="text-[13px] text-iron-gray">{product.images.length} image{product.images.length === 1 ? "" : "s"}</p>
+                            {product.images.length > 0 && (
+                              <div className="flex flex-wrap gap-2 pt-1">
+                                {product.images.map((image, index) => (
+                                  <div key={`${image}-${index}`} className="relative h-14 w-11 overflow-hidden rounded-[8px] bg-white/5">
+                                    <ProductImage src={imageSrc(image)} alt={`${product.name} image ${index + 1}`} className="object-cover" />
+                                    <button type="button" className="absolute right-1 top-1 flex h-5 w-5 items-center justify-center rounded-full bg-black/80 text-[14px] text-white hover:bg-red-500" onClick={() => removeUpcomingImage(product, index)} aria-label={`Remove image ${index + 1}`}>
+                                      ×
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
                           <div className="flex flex-col gap-2 md:min-w-[230px]">
                             <button className="rounded-full bg-white px-4 py-2 text-[13px] text-black transition-all duration-300 hover:bg-gold-accent hover:text-white" onClick={() => editUpcomingProduct(product)}>
