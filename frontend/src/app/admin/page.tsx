@@ -177,7 +177,10 @@ export default function AdminPage() {
 
     if (!res.ok) {
       const errorData = await res.json().catch(() => null);
-      throw new Error(errorData?.detail || "Unable to upload image");
+      if (res.status === 404) {
+        throw new Error("Image upload is unavailable. Restart the local backend or redeploy Railway.");
+      }
+      throw new Error(errorData?.detail || `Unable to upload image (${res.status})`);
     }
 
     return res.json() as Promise<{ image_url: string }>;
